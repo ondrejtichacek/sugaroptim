@@ -7,6 +7,9 @@ import mdtraj
 from functools import partial
 import numpy as np
 
+import pathlib
+from pathlib import Path
+
 import config
 import common
 from common import run
@@ -17,12 +20,12 @@ def make_opt_plumed_file(frame,molecule_features,kwargs_dict):
     molecule_features.write_plumed_print_features(frame+'_plumed.dat',frame+'_',1)
 
     # first get values of the frame
-    run("printf \"0\n\"|gmx trjconv -f {0} -s {0} -o {0}_plumed_restraint_values.xtc".format(frame))
-    run("plumed driver --mf_xtc {0}_plumed_restraint_values.xtc --plumed {0}_plumed.dat".format(frame))
+    run(f"printf \"0\n\"|{config.path['gmx']} trjconv -f {frame} -s {frame} -o {frame}_plumed_restraint_values.xtc")
+    run(f"plumed driver --mf_xtc {frame}_plumed_restraint_values.xtc --plumed {frame}_plumed.dat")
 
     restrain_features_values = np.loadtxt(frame+'_plumed_output_features.dat')
     restrain_features_values = restrain_features_values[1:]
-    run('rm {0}_plumed.dat {0}_plumed_output_features.dat {0}_plumed_restraint_values.xtc'.format(frame))
+    run(f'rm {frame}_plumed.dat {frame}_plumed_output_features.dat {frame}_plumed_restraint_values.xtc')
 
     molecule_features.write_plumed_file_MD_opt(frame+'_plumed_restraint.dat',frame+'_',1000,kwargs_dict,restrain_features_values)
 
@@ -33,13 +36,13 @@ def optimize_frame(i,molecule_features,kwargs_dict):
     topol=glob.glob('*.top')[0]
 
     # min
-    run("gmx grompp -f md_min.mdp -c {0} -p {1} -o {0}_min.tpr -n index.ndx -po {0}_mdout1.mdp -maxwarn 5&> {0}_grompp_min.err".format(i,topol))
-    run("mdrun_plumed -s {0}_min.tpr -v -deffnm {0}_min -nt 1 -plumed {0}_plumed_restraint.dat &> {0}_min.err".format(i))
+    run(f"{config.path['gmx']} grompp -f md_min.mdp -c {i} -p {topol} -o {i}_min.tpr -n index.ndx -po {i}_mdout1.mdp -maxwarn 5&> {i}_grompp_min.err")
+    run(f"{config.path['mdrun_plumed']} -s {i}_min.tpr -v -deffnm {i}_min -nt 1 -plumed {i}_plumed_restraint.dat &> {i}_min.err")
     # MD opt
-    run("gmx grompp -f md_opt.mdp -c {0}_min.gro -p {1} -o {0}_opt.tpr -n index.ndx -r {0}_min.gro -po {0}_mdout2.mdp -maxwarn 5 &> {0}_grompp_opt.err".format(i,topol))
-    run("mdrun_plumed -s {0}_opt.tpr -v -deffnm {0}_opt -nsteps 20000 -nt 1 -plumed {0}_plumed_restraint.dat &> {0}_opt.err".format(i))
+    run(f"{config.path['gmx']} grompp -f md_opt.mdp -c {i}_min.gro -p {topol} -o {i}_opt.tpr -n index.ndx -r {i}_min.gro -po {i}_mdout2.mdp -maxwarn 5 &> {i}_grompp_opt.err")
+    run(f"{config.path['mdrun_plumed']} -s {i}_opt.tpr -v -deffnm {i}_opt -nsteps 20000 -nt 1 -plumed {i}_plumed_restraint.dat &> {i}_opt.err")
     # to xtc
-    run("printf \"0\n\"|gmx trjconv -f {0}_opt.gro -s {0}_opt.tpr -o {0}_opt.xtc &> {0}_trjconv.err".format(i))
+    run(f"printf \"0\n\"|{config.path['gmx']} trjconv -f {i}_opt.gro -s {i}_opt.tpr -o {i}_opt.xtc &> {i}_trjconv.err")
 # do the MD optimization for all
 def optimize_individual_frames(n_iteration,number_of_new_structures,molecule_features_class,**kwargs):
     p_dir=os.getcwd()
@@ -64,12 +67,12 @@ def optimize_individual_frames(n_iteration,number_of_new_structures,molecule_fea
 
     # specify that you take every xth frame and make it
     freq_to_take = int(len(t_xtc)/number_of_new_structures)
-    run("printf \"1\n 0\n\"|gmx trjconv -f {0} -s {1} -pbc mol -center -o job_c.xtc -skip {2}".format(xtc_file,tpr_file,freq_to_take))
+    run(f"printf \"1\n 0\n\"|{config.path['gmx']} trjconv -f {xtc_file} -s {tpr_file} -pbc mol -center -o job_c.xtc -skip {freq_to_take}")
 
     # Now MD minimize them
     run('cp -r {0}/needed_files/md_inp_files/* .'.format(p_dir))
-    run("rm frame*gro.gro")
-    run("printf \"0\n\"|gmx trjconv -f job_c.xtc -s {0} -sep -o frame.gro".format(tpr_file))
+    Path("frame*.gro").unlink(missing_ok=True)
+    run(f"printf \"0\n\"|{config.path['gmx']} trjconv -f job_c.xtc -s {tpr_file} -sep -o frame.gro")
 
     # select all frames
     all_frames=glob.glob('frame*gro')
@@ -86,7 +89,7 @@ def optimize_individual_frames(n_iteration,number_of_new_structures,molecule_fea
         pass
 
     # cat the frames together
-    run("gmx trjcat -f frame*opt.xtc -o frames_opt_cat.xtc -cat")
+    run(f"{config.path['gmx']} trjcat -f frame*opt.xtc -o frames_opt_cat.xtc -cat")
     molecule_features_class.write_plumed_print_features('plumed_features.dat','',1)
 
     run("plumed driver --plumed plumed_features.dat --mf_xtc frames_opt_cat.xtc")

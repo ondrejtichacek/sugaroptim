@@ -884,7 +884,7 @@ Moreover it will write the initial plumed.dat file.
             pass
      
         grofile=glob.glob('needed_files/md_inp_files/*.gro')[0]
-        run("printf \"del 1-30 \n r SOL \n name 1 SOLUTION \n 0 & ! 1 \n name 2 MOLECULE \n q \n\"|gmx make_ndx -f {0} -o needed_files/md_inp_files/index.ndx".format(grofile))
+        run(f"printf \"del 1-30 \n r SOL \n name 1 SOLUTION \n 0 & ! 1 \n name 2 MOLECULE \n q \n\"|{config.path['gmx']} make_ndx -f {grofile} -o needed_files/md_inp_files/index.ndx")
      
      
      
@@ -1088,7 +1088,7 @@ refcoord_scaling        = com
     def gro_to_pdb(self):
         if glob.glob('needed_files/md_inp_files/structure.pdb') == []:
             gro_file = glob.glob('needed_files/md_inp_files/*.gro')[0]
-            run("printf \"0\n\"|gmx trjconv -f {0} -s {0} -o needed_files/md_inp_files/structure.pdb ".format(gro_file))
+            run(f"printf \"0\n\"|{config.path['gmx']} trjconv -f {gro_file} -s {gro_file} -o needed_files/md_inp_files/structure.pdb ")
     
 
 

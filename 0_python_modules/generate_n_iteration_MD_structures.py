@@ -227,8 +227,8 @@ def run_targeted_md_simulation(cluster_sim_nt,n_iteration):
     else:
         run('cp ../MD_trj/structure_start_sim_prev.gro structure_start_sim.gro')
 
-    run("gmx grompp -f md_prod_itX.mdp -c structure_start_sim.gro -p {0} -o job.tpr -n {1} -maxwarn 5".format(topfile,indexfile))
-    run("mdrun_plumed -s job.tpr -v -deffnm job{0}  -nsteps 100000 -nt 1 -plumed  plumed_restraint.dat".format(cluster_sim_nt))
+    run(f"{config.path['gmx']} grompp -f md_prod_itX.mdp -c structure_start_sim.gro -p {topfile} -o job.tpr -n {indexfile} -maxwarn 5")
+    run(f"{config.path['mdrun_plumed']} -s job.tpr -v -deffnm job{cluster_sim_nt}  -nsteps 100000 -nt 1 -plumed  plumed_restraint.dat")
 
     os.chdir(c_path)
 
@@ -273,19 +273,19 @@ def generate_new_structures(molecule_features,n_iteration,number_of_new_structur
 #    c_path=os.getcwd()
 #    os.chdir('new_iteration_{0}/MD_trj'.format(n_iteration))
 #    for i in glob.glob('job*xtc'):
-#        run("printf \"0\n\"|gmx trjconv -f {0} -s structure_start_sim_prev.gro -o job_tmp.xtc -b 1".format(i))
+#        run(f"printf \"0\n\"|{config.path['gmx']} trjconv -f {i} -s structure_start_sim_prev.gro -o job_tmp.xtc -b 1")
 #        run("mv job_tmp.xtc {0}".format(i))
 #    os.chdir(c_path)
 
     # cat them together
     c_path=os.getcwd()
     os.chdir('new_iteration_{0}/MD_trj'.format(n_iteration))
-    run("gmx trjcat -f job*.xtc -o job_cat.xtc -cat")
+    run(f"{config.path['gmx']} trjcat -f job*.xtc -o job_cat.xtc -cat")
     grofile=glob.glob(c_path+'/needed_files/md_inp_files/*gro')[0]
     run('cp ../MD/job.tpr job.tpr')
-    run("gmx trjcat -f job*.xtc -o job_cat.xtc -cat")
+    run(f"{config.path['gmx']} trjcat -f job*.xtc -o job_cat.xtc -cat")
     run('cp {0} structure.gro'.format(grofile))
-    run("printf \"1\n 0\n\"|gmx trjconv -f job_cat.xtc -s job.tpr -pbc mol -center -o job_cat_center.xtc")
+    run(f"printf \"1\n 0\n\"|{config.path['gmx']} trjconv -f job_cat.xtc -s job.tpr -pbc mol -center -o job_cat_center.xtc")
 
     # copy tpr file
     run('cp ../MD/job.tpr job.tpr')
