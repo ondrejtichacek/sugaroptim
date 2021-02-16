@@ -1,10 +1,15 @@
 import numpy as np
 import os
+import subprocess
 import math as m
 import glob
 import mdtraj
 import re
 import sys
+
+import config
+import common
+from common import run
 
 class class_molecule_features:
     """
@@ -824,8 +829,8 @@ Moreover it will write the initial plumed.dat file.
             
     def write_additional_plumed_print_features(self,plumed_file_name,plumed_output_folder):
         try:
-            os.system('cp needed_files/plumed_additional_features.dat {0}'.format(plumed_file_name))
-            os.system("sed -i 's|FILEDEST|{0}|g' {1} ".format(plumed_output_folder,plumed_file_name))
+            run('cp needed_files/plumed_additional_features.dat {0}'.format(plumed_file_name))
+            run("sed -i 's|FILEDEST|{0}|g' {1} ".format(plumed_output_folder,plumed_file_name))
         except:
             pass
 
@@ -879,7 +884,7 @@ Moreover it will write the initial plumed.dat file.
             pass
      
         grofile=glob.glob('needed_files/md_inp_files/*.gro')[0]
-        os.system("printf \"del 1-30 \n r SOL \n name 1 SOLUTION \n 0 & ! 1 \n name 2 MOLECULE \n q \n\"|gmx make_ndx -f {0} -o needed_files/md_inp_files/index.ndx".format(grofile))
+        run("printf \"del 1-30 \n r SOL \n name 1 SOLUTION \n 0 & ! 1 \n name 2 MOLECULE \n q \n\"|gmx make_ndx -f {0} -o needed_files/md_inp_files/index.ndx".format(grofile))
      
      
      
@@ -1083,7 +1088,7 @@ refcoord_scaling        = com
     def gro_to_pdb(self):
         if glob.glob('needed_files/md_inp_files/structure.pdb') == []:
             gro_file = glob.glob('needed_files/md_inp_files/*.gro')[0]
-            os.system("printf \"0\n\"|gmx trjconv -f {0} -s {0} -o needed_files/md_inp_files/structure.pdb ".format(gro_file))
+            run("printf \"0\n\"|gmx trjconv -f {0} -s {0} -o needed_files/md_inp_files/structure.pdb ".format(gro_file))
     
 
 

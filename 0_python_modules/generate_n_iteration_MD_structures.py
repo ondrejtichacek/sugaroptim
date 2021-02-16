@@ -1,8 +1,13 @@
 import shutil
+import subprocess
 import numpy as np
 import glob
 import shutil
 import os
+
+import config
+import common
+from common import run
 
 def generate_restrained_MD_plumed_file_targeted_MD(molecule_features,n_iteration,kwargs_dict):
     with open("new_iteration_{0}/MD/plumed_restraint.dat".format(n_iteration),'w') as fw:
@@ -208,7 +213,7 @@ def run_targeted_md_simulation(cluster_sim_nt,n_iteration):
     # Now copy md files here
     for file in glob.glob('needed_files/md_inp_files/*'):
         dest_dir="new_iteration_{0}/MD/.".format(n_iteration)
-        os.system('cp -r {0} {1}'.format(file,dest_dir))
+        run('cp -r {0} {1}'.format(file,dest_dir))
     # Now run the simulations
     c_path=os.getcwd()
     os.chdir('new_iteration_{0}/MD'.format(n_iteration))
@@ -218,12 +223,12 @@ def run_targeted_md_simulation(cluster_sim_nt,n_iteration):
     indexfile=glob.glob('*.ndx')[0]
 
     if cluster_sim_nt == 0:
-        os.system('cp {0} structure_start_sim.gro'.format(grofile))
+        run('cp {0} structure_start_sim.gro'.format(grofile))
     else:
-        os.system('cp ../MD_trj/structure_start_sim_prev.gro structure_start_sim.gro')
+        run('cp ../MD_trj/structure_start_sim_prev.gro structure_start_sim.gro')
 
-    os.system("gmx grompp -f md_prod_itX.mdp -c structure_start_sim.gro -p {0} -o job.tpr -n {1} -maxwarn 5".format(topfile,indexfile))
-    os.system("mdrun_plumed -s job.tpr -v -deffnm job{0}  -nsteps 100000 -nt 1 -plumed  plumed_restraint.dat".format(cluster_sim_nt))
+    run("gmx grompp -f md_prod_itX.mdp -c structure_start_sim.gro -p {0} -o job.tpr -n {1} -maxwarn 5".format(topfile,indexfile))
+    run("mdrun_plumed -s job.tpr -v -deffnm job{0}  -nsteps 100000 -nt 1 -plumed  plumed_restraint.dat".format(cluster_sim_nt))
 
     os.chdir(c_path)
 
@@ -258,8 +263,8 @@ def generate_new_structures(molecule_features,n_iteration,number_of_new_structur
 
         # Check that it did not crash
         if glob.glob("new_iteration_{0}/MD/step*".format(n_iteration)) == []:
-            os.system('cp new_iteration_{0}/MD/job{1}.xtc new_iteration_{0}/MD_trj/.'.format(n_iteration,cluster_sim_nt))
-            os.system('cp new_iteration_{0}/MD/job{1}.gro new_iteration_{0}/MD_trj/structure_start_sim_prev.gro'.format(n_iteration,cluster_sim_nt))
+            run('cp new_iteration_{0}/MD/job{1}.xtc new_iteration_{0}/MD_trj/.'.format(n_iteration,cluster_sim_nt))
+            run('cp new_iteration_{0}/MD/job{1}.gro new_iteration_{0}/MD_trj/structure_start_sim_prev.gro'.format(n_iteration,cluster_sim_nt))
             cluster_sim_nt += 1
         else:
             pass
@@ -268,22 +273,22 @@ def generate_new_structures(molecule_features,n_iteration,number_of_new_structur
 #    c_path=os.getcwd()
 #    os.chdir('new_iteration_{0}/MD_trj'.format(n_iteration))
 #    for i in glob.glob('job*xtc'):
-#        os.system("printf \"0\n\"|gmx trjconv -f {0} -s structure_start_sim_prev.gro -o job_tmp.xtc -b 1".format(i))
-#        os.system("mv job_tmp.xtc {0}".format(i))
+#        run("printf \"0\n\"|gmx trjconv -f {0} -s structure_start_sim_prev.gro -o job_tmp.xtc -b 1".format(i))
+#        run("mv job_tmp.xtc {0}".format(i))
 #    os.chdir(c_path)
 
     # cat them together
     c_path=os.getcwd()
     os.chdir('new_iteration_{0}/MD_trj'.format(n_iteration))
-    os.system("gmx trjcat -f job*.xtc -o job_cat.xtc -cat")
+    run("gmx trjcat -f job*.xtc -o job_cat.xtc -cat")
     grofile=glob.glob(c_path+'/needed_files/md_inp_files/*gro')[0]
-    os.system('cp ../MD/job.tpr job.tpr')
-    os.system("gmx trjcat -f job*.xtc -o job_cat.xtc -cat")
-    os.system('cp {0} structure.gro'.format(grofile))
-    os.system("printf \"1\n 0\n\"|gmx trjconv -f job_cat.xtc -s job.tpr -pbc mol -center -o job_cat_center.xtc")
+    run('cp ../MD/job.tpr job.tpr')
+    run("gmx trjcat -f job*.xtc -o job_cat.xtc -cat")
+    run('cp {0} structure.gro'.format(grofile))
+    run("printf \"1\n 0\n\"|gmx trjconv -f job_cat.xtc -s job.tpr -pbc mol -center -o job_cat_center.xtc")
 
     # copy tpr file
-    os.system('cp ../MD/job.tpr job.tpr')
+    run('cp ../MD/job.tpr job.tpr')
 
     os.chdir(c_path)
 
