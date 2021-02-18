@@ -5,6 +5,8 @@ import re
 import glob
 import shutil
 
+import config
+
 #########################################################################
 ################### QM INPUT FILES GENERATION ###########################
 #########################################################################
@@ -1169,23 +1171,8 @@ def make_gaussian_inputs_o1_make_dqs_aurum(filename_counter,w_calculate,n_iterat
     else:
         c_spinspin_v=''
 
-    final_g_dqs_file="""#!/bin/bash
-
-#SBATCH -J g1
-#SBATCH --qos=normal
-#SBATCH --time=0-12
-#SBATCH --nodes=1
-#SBATCH --ntasks-per-node=36
-#SBATCH --exclusive
-#SBATCH --mem=80gb
-
-export g16root=/opt/uochb/soft/gaussian/gaussian16_a03/arch/amd64-pgi_12.10-acml
-export LD_LIBRARY_PATH=/opt/uochb/soft/gaussian/gaussian16_a03/arch/amd64-pgi_12.10-acml/g16
-export GAUSS_EXEDIR=/opt/uochb/soft/gaussian/gaussian16_a03/arch/amd64-pgi_12.10-acml/g16
-export GAUSS_SCRDIR=/dev/shm
-
-source /opt/uochb/soft/anaconda/202007/bin/activate
-conda activate tf_gpu
+    final_g_dqs_file=f"""#!/bin/bash
+{config.cluster_bash_header['gaussian_o1']}
 
 # optimization
 $GAUSS_EXEDIR/g16 <g_opt0.inp >g_opt0.inp.log
@@ -1198,21 +1185,21 @@ python g_structure_gro_extraction.py g_opt2.inp.log structure_final.gro structur
 
 # shifts
 python g_inp_file_preparation_pcm.py g_opt2.inp.log g_nmr_shifts.inp g_nmr_shifts_sample.inp
-{0}$GAUSS_EXEDIR/g16 <g_nmr_shifts.inp >g_nmr_shifts.inp.log
+{c_shifts_v}$GAUSS_EXEDIR/g16 <g_nmr_shifts.inp >g_nmr_shifts.inp.log
 
 # Raman/ROA
 python g_inp_file_preparation_oniom.py g_opt2.inp.log g_final_ROA_calc0.inp g_raman_sample0.inp
-{1}$GAUSS_EXEDIR/g16 <g_final_ROA_calc0.inp >g_final_ROA_calc0.inp.log
+{c_vib_v}$GAUSS_EXEDIR/g16 <g_final_ROA_calc0.inp >g_final_ROA_calc0.inp.log
 python g_inp_file_preparation_oniom.py g_opt2.inp.log g_final_ROA_calc.inp g_raman_sample1.inp
-{1}$GAUSS_EXEDIR/g16 <g_final_ROA_calc.inp >g_final_ROA_calc.inp.log
+{c_vib_v}$GAUSS_EXEDIR/g16 <g_final_ROA_calc.inp >g_final_ROA_calc.inp.log
 rm raman_calc_chk.chk
 
 # Jij couplings
 python g_inp_file_preparation_pcm.py g_opt2.inp.log g_nmr_spinspin.inp g_nmr_spinspin_sample.inp
-{2}$GAUSS_EXEDIR/g16 <g_nmr_spinspin.inp >g_nmr_spinspin.inp.log
+{c_spinspin_v}$GAUSS_EXEDIR/g16 <g_nmr_spinspin.inp >g_nmr_spinspin.inp.log
 #
 
-""".format(c_shifts_v,c_vib_v,c_spinspin_v)
+"""
 
     with open("{2}/f{0}_{1:05d}/qsub_ROA_calc.inp.dqs".format(n_iteration,filename_counter,write_folder),"w+") as frame_qsub_ROA_calc_dqs:
         frame_qsub_ROA_calc_dqs.write(final_g_dqs_file)
@@ -1313,23 +1300,8 @@ def make_gaussian_inputs_o2_make_dqs_aurum(filename_counter,w_calculate,n_iterat
     else:
         c_spinspin_v=''
 
-    final_g_dqs_file="""#!/bin/bash
-
-#SBATCH -J g1
-#SBATCH --qos=backfill
-#SBATCH --time=0-4
-#SBATCH --nodes=1
-#SBATCH --ntasks-per-node=36
-#SBATCH --exclusive
-#SBATCH --mem=80gb
-
-export g16root=/opt/uochb/soft/gaussian/gaussian16_a03/arch/amd64-pgi_12.10-acml
-export LD_LIBRARY_PATH=/opt/uochb/soft/gaussian/gaussian16_a03/arch/amd64-pgi_12.10-acml/g16
-export GAUSS_EXEDIR=/opt/uochb/soft/gaussian/gaussian16_a03/arch/amd64-pgi_12.10-acml/g16
-export GAUSS_SCRDIR=/dev/shm
-
-source /opt/uochb/soft/anaconda/202007/bin/activate
-conda activate tf_gpu
+    final_g_dqs_file=f"""#!/bin/bash
+{config.cluster_bash_header['gaussian_o2']}
 
 # optimization
 $GAUSS_EXEDIR/g16 <g_opt0.inp >g_opt0.inp.log
@@ -1342,19 +1314,19 @@ python g_structure_gro_extraction.py g_opt2.inp.log structure_final.gro structur
 
 # shifts
 python g_inp_file_preparation_pcm.py g_opt2.inp.log g_nmr_shifts.inp g_nmr_shifts_sample.inp
-{0}$GAUSS_EXEDIR/g16 <g_nmr_shifts.inp >g_nmr_shifts.inp.log
+{c_shifts_v}$GAUSS_EXEDIR/g16 <g_nmr_shifts.inp >g_nmr_shifts.inp.log
 
 # Raman/ROA
 python g_inp_file_preparation_oniom.py g_opt2.inp.log g_final_ROA_calc.inp g_raman_sample0.inp
-{1}$GAUSS_EXEDIR/g16 <g_final_ROA_calc.inp >g_final_ROA_calc.inp.log
+{c_vib_v}$GAUSS_EXEDIR/g16 <g_final_ROA_calc.inp >g_final_ROA_calc.inp.log
 rm raman_calc_chk.chk
 
 # Jij couplings
 python g_inp_file_preparation_pcm.py g_opt2.inp.log g_nmr_spinspin.inp g_nmr_spinspin_sample.inp
-{2}$GAUSS_EXEDIR/g16 <g_nmr_spinspin.inp >g_nmr_spinspin.inp.log
+{c_spinspin_v}$GAUSS_EXEDIR/g16 <g_nmr_spinspin.inp >g_nmr_spinspin.inp.log
 #
 
-""".format(c_shifts_v,c_vib_v,c_spinspin_v)
+"""
 
     with open("{2}/f{0}_{1:05d}/qsub_ROA_calc.inp.dqs".format(n_iteration,filename_counter,write_folder),"w+") as frame_qsub_ROA_calc_dqs:
         frame_qsub_ROA_calc_dqs.write(final_g_dqs_file)
@@ -1430,23 +1402,8 @@ def make_gaussian_inputs_o3_make_dqs_aurum(filename_counter,w_calculate,n_iterat
     else:
         c_spinspin_v=''
 
-    final_g_dqs_file="""#!/bin/bash
-
-#SBATCH -J g1
-#SBATCH --qos=backfill
-#SBATCH --time=0-4
-#SBATCH --nodes=1
-#SBATCH --ntasks-per-node=36
-#SBATCH --exclusive
-#SBATCH --mem=80gb
-
-export g16root=/opt/uochb/soft/gaussian/gaussian16_a03/arch/amd64-pgi_12.10-acml
-export LD_LIBRARY_PATH=/opt/uochb/soft/gaussian/gaussian16_a03/arch/amd64-pgi_12.10-acml/g16
-export GAUSS_EXEDIR=/opt/uochb/soft/gaussian/gaussian16_a03/arch/amd64-pgi_12.10-acml/g16
-export GAUSS_SCRDIR=/dev/shm
-
-source /opt/uochb/soft/anaconda/202007/bin/activate
-conda activate tf_gpu
+    final_g_dqs_file=f"""#!/bin/bash
+{config.cluster_bash_header['gaussian_o3']}
 
 # optimization
 $GAUSS_EXEDIR/g16 <g_opt0.inp >g_opt0.inp.log
@@ -1456,20 +1413,20 @@ rm g_opt.chk
 python g_structure_gro_extraction.py g_opt0.inp.log structure_final.gro structure_initial.gro
 
 # shifts
-{0}python g_inp_file_preparation_pcm.py g_opt0.inp.log g_nmr_shifts.inp g_nmr_shifts_sample.inp
-{0}$GAUSS_EXEDIR/g16 <g_nmr_shifts.inp >g_nmr_shifts.inp.log
+{c_shifts_v}python g_inp_file_preparation_pcm.py g_opt0.inp.log g_nmr_shifts.inp g_nmr_shifts_sample.inp
+{c_shifts_v}$GAUSS_EXEDIR/g16 <g_nmr_shifts.inp >g_nmr_shifts.inp.log
 
 # Raman/ROA
-{1}python g_inp_file_preparation_oniom.py g_opt0.inp.log g_final_ROA_calc.inp g_raman_sample0.inp
-{1}$GAUSS_EXEDIR/g16 <g_final_ROA_calc.inp >g_final_ROA_calc.inp.log
+{c_vib_v}python g_inp_file_preparation_oniom.py g_opt0.inp.log g_final_ROA_calc.inp g_raman_sample0.inp
+{c_vib_v}$GAUSS_EXEDIR/g16 <g_final_ROA_calc.inp >g_final_ROA_calc.inp.log
 rm raman_calc_chk.chk
 
 # Jij couplings
-{2}python g_inp_file_preparation_pcm.py g_opt0.inp.log g_nmr_spinspin.inp g_nmr_spinspin_sample.inp
-{2}$GAUSS_EXEDIR/g16 <g_nmr_spinspin.inp >g_nmr_spinspin.inp.log
+{c_spinspin_v}python g_inp_file_preparation_pcm.py g_opt0.inp.log g_nmr_spinspin.inp g_nmr_spinspin_sample.inp
+{c_spinspin_v}$GAUSS_EXEDIR/g16 <g_nmr_spinspin.inp >g_nmr_spinspin.inp.log
 #
 
-""".format(c_shifts_v,c_vib_v,c_spinspin_v)
+"""
 
 
     with open("{2}/f{0}_{1:05d}/qsub_ROA_calc.inp.dqs".format(n_iteration,filename_counter,write_folder),"w+") as frame_qsub_ROA_calc_dqs:
