@@ -5,9 +5,8 @@ import glob
 import shutil
 import os
 
-import config
-import common
-from common import run
+from mdshark import config
+from mdshark.common import run
 
 def generate_restrained_MD_plumed_file_targeted_MD(molecule_features,n_iteration,kwargs_dict):
     with open("new_iteration_{0}/MD/plumed_restraint.dat".format(n_iteration),'w') as fw:

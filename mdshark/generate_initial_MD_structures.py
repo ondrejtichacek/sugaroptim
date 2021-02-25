@@ -3,9 +3,8 @@ import subprocess
 import shutil
 import glob
 
-import config
-import common
-from common import run
+from mdshark import config
+from mdshark.common import run
 
 def run_initial_md_simulation(cluster_sim_nt,n_iteration):
     # Now copy md files here

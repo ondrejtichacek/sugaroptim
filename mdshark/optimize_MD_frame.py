@@ -10,9 +10,8 @@ import numpy as np
 import pathlib
 from pathlib import Path
 
-import config
-import common
-from common import run
+from mdshark import config
+from mdshark.common import run
 
 # Function to write plumed restraint file for MD optimization
 def make_opt_plumed_file(frame,molecule_features,kwargs_dict):

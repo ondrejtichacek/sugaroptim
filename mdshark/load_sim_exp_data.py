@@ -4,10 +4,7 @@ import glob
 import os
 import scipy.ndimage
 
-# include python modules
-import sys
-sys.path.append(os.getcwd()+'/../0_python_modules/python_modules/')
-import m_molecular_features
+from mdshark import m_molecular_features
 
 class experiment:
     def __init__(self,experimental_data_av):

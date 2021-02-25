@@ -5,7 +5,7 @@ import re
 import glob
 import shutil
 
-import config
+from mdshark import config
 
 #########################################################################
 ################### QM INPUT FILES GENERATION ###########################

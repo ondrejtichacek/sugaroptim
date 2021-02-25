@@ -7,9 +7,8 @@ import mdtraj
 import re
 import sys
 
-import config
-import common
-from common import run
+from mdshark import config
+from mdshark.common import run
 
 class class_molecule_features:
     """
