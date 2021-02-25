@@ -4,9 +4,6 @@ import os
 import mdtraj as md
 import glob
 import matplotlib.pyplot as plt
-# import mpl_toolkits.basemap as bm 
-from matplotlib import cm
-import time
 from pathlib import Path
 
 # include individual python modules
