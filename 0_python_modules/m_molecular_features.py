@@ -828,11 +828,8 @@ Moreover it will write the initial plumed.dat file.
             fw.write(self.write_plumed_features_print(write_frequency,plumed_output_folder))
             
     def write_additional_plumed_print_features(self,plumed_file_name,plumed_output_folder):
-        try:
-            run('cp needed_files/plumed_additional_features.dat {0}'.format(plumed_file_name))
-            run("sed -i 's|FILEDEST|{0}|g' {1} ".format(plumed_output_folder,plumed_file_name))
-        except:
-            pass
+        run('cp needed_files/plumed_additional_features.dat {0}'.format(plumed_file_name))
+        run("sed -i 's|FILEDEST|{0}|g' {1} ".format(plumed_output_folder,plumed_file_name))
 
     def write_plumed_file_MD0(self,plumed_file_name,plumed_output_folder,write_frequency,kwargs_dict):
         with open (plumed_file_name,'w') as fw:

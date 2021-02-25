@@ -75,7 +75,7 @@ def optimize_individual_frames(n_iteration,number_of_new_structures,molecule_fea
     run(f"printf \"0\n\"|{config.path['gmx']} trjconv -f job_c.xtc -s {tpr_file} -sep -o frame.gro")
 
     # select all frames
-    all_frames=glob.glob('frame*gro')
+    all_frames=glob.glob('frame*.gro')
 
     # do the optimization
     try:
