@@ -3,7 +3,9 @@ import os
 import mdtraj
 import re
 import glob
+from pathlib import Path
 import shutil
+import pickle
 
 from mdshark import config
 
@@ -370,155 +372,21 @@ VDW h1 1.3870 0.0157"""
 # python scripts to handle geometries and prepare final input files from sample
 def make_python_scripts(n_iteration,filename_counter,molecule_features,write_folder):
 
-    # Python file which prepare oniom calculations (Raman/ROA)
-    g_inp_file_preparation_oniom="""
-from sys import argv
-sc,f1_goptfile,f2_gfinac_new,f3_gfinalc_sample = argv
+    target_dir = Path("{2}/f{0}_{1:05d}".format(n_iteration,filename_counter,write_folder))
 
+    source_dir = Path("../mdshark/")
 
-atom_names=[]
-oniom_levels=[]
-xyz=[]
+    for f in [ 
+            "g_inp_file_preparation_oniom.py", # Python file which prepare oniom calculations (Raman/ROA)
+            "g_inp_file_preparation_pcm.py", # Python file which prepare pcm calculations 
+            "g_structure_extraction.py",]:
 
-with open(f1_goptfile) as f_in:
-    for i,line in enumerate(f_in):
-        try:
-            if line.split()[0]=='NAtoms=' and line.split()[2]=='NActive=':
-                n_atoms=int(line.split()[1])
-        except IndexError:
-            pass
-        try:
-            if line.split()[3]=='Coordinates':
-                xyz_last_line=i
-        except IndexError:
-            pass
-
-with open(f1_goptfile) as f_in:
-    lines=f_in.readlines()
-    for i in range(xyz_last_line+3,xyz_last_line+n_atoms+3):
-        xyz.append(lines[i].split()[3:6])
-
-
-with open(f3_gfinalc_sample,"r+") as f_in:
-    for num,line in enumerate(f_in):
-        list=line.split()
-        if list==[str({0}),str({1}),str({0}),str({1}),str({0}),str({1})]:
-            xyz_start=num
-
-with open(f2_gfinac_new,"w+") as f_o:
-    with open(f3_gfinalc_sample,"r+") as f_sample:
-        f_sample_l=f_sample.readlines()
-        for i in range(0,xyz_start+1):
-            f_o.write(f_sample_l[i])
-        for i in range(0,n_atoms):
-            atom_name=f_sample_l[xyz_start+i+1].split()[0]
-            oniom_level=f_sample_l[xyz_start+i+1].split()[5]
-            opt_level=f_sample_l[xyz_start+i+1].split()[1]
-            f_o.write(" %10s %5s %10s %10s %10s %2s\\n"%(atom_name,opt_level,xyz[i][0],xyz[i][1],xyz[i][2],oniom_level))
-        for i in range(xyz_start+n_atoms+1,len(f_sample_l)):
-            f_o.write(f_sample_l[i])
-
-""".format(molecule_features.charge,molecule_features.multiplicity)
-
-
-    # Python file which prepare pcm calculations 
-    g_inp_file_preparation_pcm="""
-from sys import argv
-sc,f1_goptfile,f2_gfinac_new,f3_gfinalc_sample = argv
-
-
-atom_names=[]
-xyz=[]
-
-with open(f1_goptfile) as f_in:
-    for i,line in enumerate(f_in):
-        try:
-            if line.split()[0]=='NAtoms=' and line.split()[2]=='NActive=':
-                n_atoms=int(line.split()[1])
-        except IndexError:
-            pass
-        try:
-            if line.split()[3]=='Coordinates':
-                xyz_last_line=i
-        except IndexError:
-            pass
-
-with open(f1_goptfile) as f_in:
-    lines=f_in.readlines()
-    for i in range(xyz_last_line+3,xyz_last_line+n_atoms+3):
-        xyz.append(lines[i].split()[3:6])
-
-c=-2
-c_read=0
-
-with open(f3_gfinalc_sample,"r+") as f_in:
-    for num,line in enumerate(f_in):
-        list=line.split()
-        if list==[str({0}),str({1})]:
-            xyz_start=num
-            c_read=1
-        if c_read==1:
-            c+=1
-        if c_read==1 and list==[]:
-            c_read=0
-
-
-with open(f2_gfinac_new,"w+") as f_o:
-    with open(f3_gfinalc_sample,"r+") as f_sample:
-        f_sample_l=f_sample.readlines()
-        for i in range(0,xyz_start+1):
-            f_o.write(f_sample_l[i])
-        for i in range(0,c):
-            atom_name=f_sample_l[xyz_start+i+1].split()[0]
-            f_o.write(" %3s  %10s %10s %10s\\n"%(atom_name,xyz[i][0],xyz[i][1],xyz[i][2]))
-        for i in range(xyz_start+c+1,len(f_sample_l)):
-            f_o.write(f_sample_l[i])
-
-""".format(molecule_features.charge,molecule_features.multiplicity)
-
-
-    g_structure_extraction="""
-from sys import argv
-sc,f1_goptfile,f2_gfinac_new,f3_gfinalc_sample = argv
-
-
-xyz=[]
-
-with open(f1_goptfile) as f_in:
-    for i,line in enumerate(f_in):
-        try:
-            if line.split()[0]=='NAtoms=' and line.split()[2]=='NActive=':
-                n_atoms=int(line.split()[1])
-        except IndexError:
-            pass
-        try:
-            if line.split()[3]=='Coordinates':
-                xyz_last_line=i
-        except IndexError:
-            pass
-
-with open(f1_goptfile) as f_in:
-    lines=f_in.readlines()
-    for i in range(xyz_last_line+3,xyz_last_line+n_atoms+3):
-        xyz.append([float(i)/10 for i in lines[i].split()[3:6]])
-
-with open(f2_gfinac_new,"w+") as f_o, open(f3_gfinalc_sample,"r+") as f_sample:
-    f_sample_l=f_sample.readlines()
-    for i in f_sample_l[0:2]:
-        f_o.write(i)
-    for idx,i in enumerate(f_sample_l[2:2+n_atoms]):
-        str1=str(i[:20])
-        str2w='{0:8.3f}{1:8.3f}{2:8.3f} \\n'.format(xyz[idx][0],xyz[idx][1],xyz[idx][2])
-        str_w=str1+str2w
-        f_o.write(str_w)
-    f_o.write(str(f_sample_l[-1]))
-"""
-    with open("{2}/f{0}_{1:05d}/g_inp_file_preparation_oniom.py".format(n_iteration,filename_counter,write_folder),"w+") as frame_g_inp_file_preparation:
-        frame_g_inp_file_preparation.write(g_inp_file_preparation_oniom)
-    with open("{2}/f{0}_{1:05d}/g_inp_file_preparation_pcm.py".format(n_iteration,filename_counter,write_folder),"w+") as frame_g_inp_file_preparation:
-        frame_g_inp_file_preparation.write(g_inp_file_preparation_pcm)
-    with open("{2}/f{0}_{1:05d}/g_structure_gro_extraction.py".format(n_iteration,filename_counter,write_folder),"w+") as frame_g_inp_file_preparation:
-        frame_g_inp_file_preparation.write(g_structure_extraction)
+        shutil.copy(source_dir/f, target_dir/f)
+    
+    with open(target_dir/'molecule_features.pickle', 'wb') as f:
+        pickle.dump({
+            'charge': molecule_features.charge,
+            'multiplicity': molecule_features.multiplicity,}, f)
 
 ######################################
 ### Option 1 - low quality - START ###
