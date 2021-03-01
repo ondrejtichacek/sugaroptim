@@ -1,3 +1,4 @@
+import pickle
 from sys import argv
 sc,f1_goptfile,f2_gfinac_new,f3_gfinalc_sample = argv
 
@@ -5,6 +6,12 @@ sc,f1_goptfile,f2_gfinac_new,f3_gfinalc_sample = argv
 atom_names=[]
 oniom_levels=[]
 xyz=[]
+
+with open('molecule_features.pickle', 'rb') as f:
+    molecule_features = pickle.load(f)
+
+charge = str(molecule_features['charge'])
+multiplicity = str(molecule_features['multiplicity'])
 
 with open(f1_goptfile) as f_in:
     for i,line in enumerate(f_in):
@@ -27,8 +34,8 @@ with open(f1_goptfile) as f_in:
 
 with open(f3_gfinalc_sample,"r+") as f_in:
     for num,line in enumerate(f_in):
-        list=line.split()
-        if list==[str({0}),str({1}),str({0}),str({1}),str({0}),str({1})]:
+        lst=line.split()
+        if lst==[charge,multiplicity,charge,multiplicity,charge,multiplicity]:
             xyz_start=num
 
 with open(f2_gfinac_new,"w+") as f_o:
