@@ -7,6 +7,9 @@ atom_names=[]
 oniom_levels=[]
 xyz=[]
 
+n_atoms = None
+xyz_last_line = None
+
 with open('molecule_features.pickle', 'rb') as f:
     molecule_features = pickle.load(f)
 
@@ -25,6 +28,9 @@ with open(f1_goptfile) as f_in:
                 xyz_last_line=i
         except IndexError:
             pass
+
+if n_atoms is None or xyz_last_line is None:
+    raise(ValueError("NAtoms and Coordinates not found in the log file, did the simulation finish properly?"))
 
 with open(f1_goptfile) as f_in:
     lines=f_in.readlines()
@@ -47,6 +53,6 @@ with open(f2_gfinac_new,"w+") as f_o:
             atom_name=f_sample_l[xyz_start+i+1].split()[0]
             oniom_level=f_sample_l[xyz_start+i+1].split()[5]
             opt_level=f_sample_l[xyz_start+i+1].split()[1]
-            f_o.write(" %10s %5s %10s %10s %10s %2s\\n"%(atom_name,opt_level,xyz[i][0],xyz[i][1],xyz[i][2],oniom_level))
+            f_o.write(" %10s %5s %10s %10s %10s %2s\n"%(atom_name,opt_level,xyz[i][0],xyz[i][1],xyz[i][2],oniom_level))
         for i in range(xyz_start+n_atoms+1,len(f_sample_l)):
             f_o.write(f_sample_l[i])

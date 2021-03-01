@@ -6,6 +6,9 @@ sc,f1_goptfile,f2_gfinac_new,f3_gfinalc_sample = argv
 atom_names=[]
 xyz=[]
 
+n_atoms = None
+xyz_last_line = None
+
 with open('molecule_features.pickle', 'rb') as f:
     molecule_features = pickle.load(f)
 
@@ -24,6 +27,9 @@ with open(f1_goptfile) as f_in:
                 xyz_last_line=i
         except IndexError:
             pass
+
+if n_atoms is None or xyz_last_line is None:
+    raise(ValueError("NAtoms and Coordinates not found in the log file, did the simulation finish properly?"))
 
 with open(f1_goptfile) as f_in:
     lines=f_in.readlines()
@@ -52,6 +58,6 @@ with open(f2_gfinac_new,"w+") as f_o:
             f_o.write(f_sample_l[i])
         for i in range(0,c):
             atom_name=f_sample_l[xyz_start+i+1].split()[0]
-            f_o.write(" %3s  %10s %10s %10s\\n"%(atom_name,xyz[i][0],xyz[i][1],xyz[i][2]))
+            f_o.write(" %3s  %10s %10s %10s\n"%(atom_name,xyz[i][0],xyz[i][1],xyz[i][2]))
         for i in range(xyz_start+c+1,len(f_sample_l)):
             f_o.write(f_sample_l[i])

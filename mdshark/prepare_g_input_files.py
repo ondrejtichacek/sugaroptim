@@ -1048,6 +1048,8 @@ $GAUSS_EXEDIR/g16 <g_opt1.inp >g_opt1.inp.log
 $GAUSS_EXEDIR/g16 <g_opt2.inp >g_opt2.inp.log
 rm g_opt.chk
 
+set -e
+
 # get final structure
 python g_structure_gro_extraction.py g_opt2.inp.log structure_final.gro structure_initial.gro
 
@@ -1067,6 +1069,7 @@ python g_inp_file_preparation_pcm.py g_opt2.inp.log g_nmr_spinspin.inp g_nmr_spi
 {c_spinspin_v}$GAUSS_EXEDIR/g16 <g_nmr_spinspin.inp >g_nmr_spinspin.inp.log
 #
 
+exit 0
 """
 
     with open("{2}/f{0}_{1:05d}/qsub_ROA_calc.inp.dqs".format(n_iteration,filename_counter,write_folder),"w+") as frame_qsub_ROA_calc_dqs:
@@ -1177,6 +1180,8 @@ $GAUSS_EXEDIR/g16 <g_opt1.inp >g_opt1.inp.log
 $GAUSS_EXEDIR/g16 <g_opt2.inp >g_opt2.inp.log
 rm g_opt.chk
 
+set -e
+
 # get final structure
 python g_structure_gro_extraction.py g_opt2.inp.log structure_final.gro structure_initial.gro
 
@@ -1194,6 +1199,7 @@ python g_inp_file_preparation_pcm.py g_opt2.inp.log g_nmr_spinspin.inp g_nmr_spi
 {c_spinspin_v}$GAUSS_EXEDIR/g16 <g_nmr_spinspin.inp >g_nmr_spinspin.inp.log
 #
 
+exit 0
 """
 
     with open("{2}/f{0}_{1:05d}/qsub_ROA_calc.inp.dqs".format(n_iteration,filename_counter,write_folder),"w+") as frame_qsub_ROA_calc_dqs:
@@ -1277,6 +1283,8 @@ def make_gaussian_inputs_o3_make_dqs_aurum(filename_counter,w_calculate,n_iterat
 $GAUSS_EXEDIR/g16 <g_opt0.inp >g_opt0.inp.log
 rm g_opt.chk
 
+set -e
+
 # get final structure
 python g_structure_gro_extraction.py g_opt0.inp.log structure_final.gro structure_initial.gro
 
@@ -1294,6 +1302,7 @@ rm raman_calc_chk.chk
 {c_spinspin_v}$GAUSS_EXEDIR/g16 <g_nmr_spinspin.inp >g_nmr_spinspin.inp.log
 #
 
+exit 0
 """
 
 
