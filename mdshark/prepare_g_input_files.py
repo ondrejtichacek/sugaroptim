@@ -379,7 +379,7 @@ def make_python_scripts(n_iteration,filename_counter,molecule_features,write_fol
     for f in [ 
             "g_inp_file_preparation_oniom.py", # Python file which prepare oniom calculations (Raman/ROA)
             "g_inp_file_preparation_pcm.py", # Python file which prepare pcm calculations 
-            "g_structure_extraction.py",]:
+            "g_structure_gro_extraction.py",]:
 
         shutil.copy(source_dir/f, target_dir/f)
     
