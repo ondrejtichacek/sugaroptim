@@ -11,7 +11,7 @@ import pathlib
 from pathlib import Path
 
 from mdshark import config
-from mdshark.common import run
+from mdshark.common import run, logger
 
 # Function to write plumed restraint file for MD optimization
 def make_opt_plumed_file(frame,molecule_features,kwargs_dict):
@@ -44,6 +44,9 @@ def optimize_frame(i,molecule_features,kwargs_dict):
     run(f"printf \"0\n\"|{config.path['gmx']} trjconv -f {i}_opt.gro -s {i}_opt.tpr -o {i}_opt.xtc &> {i}_trjconv.err")
 # do the MD optimization for all
 def optimize_individual_frames(n_iteration,number_of_new_structures,molecule_features_class,**kwargs):
+
+    logger.notice("Optimizing individual frames")
+
     p_dir=os.getcwd()
 
     grofile =  p_dir+'/'+glob.glob('needed_files/md_inp_files/*gro')[0]

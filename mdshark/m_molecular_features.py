@@ -8,7 +8,7 @@ import re
 import sys
 
 from mdshark import config
-from mdshark.common import run
+from mdshark.common import run, logger
 
 class class_molecule_features:
     """
@@ -66,10 +66,10 @@ Moreover it will write the initial plumed.dat file.
             elif sum>-2.1 and sum<-1.25:
                 charge=-2
             else:
-                print('The charge is quite big, is it correct?')
+                logger.warning('The charge is quite big, is it correct?')
                 charge=round(sum)
-                print("CHECK CHARGE OF YOUR MOLECULE PROPERLY - IT MAY BE WRONG")
-            print('Charge of you molecule is: {0}'.format(charge))
+                logger.warning("CHECK CHARGE OF YOUR MOLECULE PROPERLY - IT MAY BE WRONG")
+            logger.info(f"Charge of your molecule is: {charge}")
             return charge,charges_array
 
         ################ start ####################
@@ -79,18 +79,20 @@ Moreover it will write the initial plumed.dat file.
         #############################
 
         # load it using mdtraj
-        t_name=glob.glob(name)[0]
+        t_name = glob.glob(name)
+        assert(len(t_name) == 1) # NOTE: if so, why are we using glob?
+        t_name = t_name[0]
         t = mdtraj.load(t_name)
 
         # get mol idx/water idx
-        try:
+        if 'select_central_mol' in kwargs:
             sel_mol_idx = t.top.select(kwargs['select_central_mol'])
-            print("Central mol selection: ",kwargs['select_central_mol'])
-            print("Indices selected: ",sel_mol_idx)
-        except:
+            logger.verbose(f"Central mol selection: {kwargs['select_central_mol']}")
+            logger.debug(f"Indices selected: {sel_mol_idx}")
+        else:
             sel_mol_idx = t.top.select("not water")
-            print("No central mol selection")
-            print("Indices selected: ",sel_mol_idx)
+            logger.verbose(f"No central mol selection")
+            logger.debug(f"Indices selected: {sel_mol_idx}")
         self.mol_idx = sel_mol_idx
         self.water_idx = t.top.select("water")
 

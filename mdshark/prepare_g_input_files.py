@@ -8,6 +8,7 @@ import shutil
 import pickle
 
 from mdshark import config
+from mdshark.common import logger
 
 #########################################################################
 ################### QM INPUT FILES GENERATION ###########################
@@ -215,7 +216,7 @@ def set_oniom_vdw_parameters(**kwargs):
     
     # glycam DNA RNA parameters
     if oniom_vdw_parameters_C == 'RNA_DNA_1':
-        print("Setting ONIOM vdw parameters to: RND/DNA glycam")
+        logger.verbose("Setting ONIOM vdw parameters to: RND/DNA glycam")
         oniom_vdw_parameters="""VDW OW 1.7682 0.1521
 VDW HW 0.0000 0.0000
 VDW cc 1.9080 0.0860
@@ -242,7 +243,7 @@ VDW h4 1.4090 0.0150"""
 
     # Glycam parameters
     elif oniom_vdw_parameters_C == 'glycam_saccharides':
-        print("Setting ONIOM vdw parameters to: glycam saccharides")
+        logger.verbose("Setting ONIOM vdw parameters to: glycam saccharides")
         oniom_vdw_parameters="""VDW OW 1.7682 0.1521
 VDW HW 0.0000 0.0000
 VDW C  1.9080  0.0860
@@ -260,7 +261,7 @@ VDW O2 1.6612  0.2100
 VDW c3 1.9080  0.0860"""
     # Protein charmm parameters
     elif oniom_vdw_parameters_C == 'proteins_1':
-        print("Setting ONIOM vdw parameters to: proteins_1")
+        logger.verbose("Setting ONIOM vdw parameters to: proteins_1")
         oniom_vdw_parameters="""VDW OW 1.7682 0.1521
 VDW HW 0.0000 0.0000
 VDW H 0.2245 0.0460
@@ -309,7 +310,7 @@ VDW OC 1.7000 0.1200"""
 
     # protien GAFF generated form antechamber
     elif oniom_vdw_parameters_C == 'proteins_2':
-        print("Setting ONIOM vdw parameters to: proteins_2")
+        logger.verbose("Setting ONIOM vdw parameters to: proteins_2")
         oniom_vdw_parameters="""VDW OW 1.7682 0.1521
 VDW HW 0.0000 0.0000
 VDW ca 1.9080 0.0860
@@ -327,7 +328,7 @@ VDW h1 1.3870 0.0157"""
     # automatic charmm picked
     elif oniom_vdw_parameters_C == 'charmm-cgenff':
         try:
-            print("Setting ONIOM vdw parameters to charmm-cgenff")
+            logger.verbose("Setting ONIOM vdw parameters to charmm-cgenff")
 
             read_ff_nb = False
             unique_atoms = []
@@ -359,14 +360,14 @@ VDW h1 1.3870 0.0157"""
                 oniom_vdw_parameters += "{0} {1} {2:.5f} {3:.5f}\n".format('VDW',i[0],sig,eps)       
         except Exception as err:
             print(err)
-            print("Error when setting ONIOM vdw parameters to charmm-cgenff ")
-            print("Check mol.itp/ffnonbonded file paths")
+            logger.warning("Error when setting ONIOM vdw parameters to charmm-cgenff ")
+            logger.warning("Check mol.itp/ffnonbonded file paths")
 
         # delete the last new line
         oniom_vdw_parameters = oniom_vdw_parameters[:-2]
         
     else:
-        print("Error: did not found VDW parameters")
+        logger.warning("Error: did not found VDW parameters")
     return  oniom_vdw_parameters
 
 # python scripts to handle geometries and prepare final input files from sample
@@ -1316,11 +1317,13 @@ exit 0
 
 def prepare_qm_input_files(molecule_features,n_iteration,w_calculate,qm_m_nproc,**prepare_qm_input_files_kwargs):
     
+    logger.notice("Preparing QM input files")
+
     # set method
     try:
         method = prepare_qm_input_files_kwargs['method']
     except:
-        print("Problem with setting qm generate input files. Defaulting to m1_raman_low.")
+        logger.warning("Problem with setting qm generate input files. Defaulting to m1_raman_low.")
         method = 'm1_raman_low'
         
     # set oniom vdw parameters
@@ -1389,7 +1392,7 @@ def prepare_qm_input_files(molecule_features,n_iteration,w_calculate,qm_m_nproc,
         # file counter
         filename_counter+=1
 
-    print("DONE")
+    logger.info("Done preparing QM input files")
 
 
 
