@@ -5,4 +5,7 @@ if __name__ == "__main__":
 
     # mds.initialize_structures()
 
+    n_iteration = 0
+    mds.g_submit(n_iteration)
+
     pass

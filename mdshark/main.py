@@ -94,6 +94,29 @@ class MDSharkOptimizer:
         c_spinspin = 1
         self.w_calculate = [c_vib, c_shifts, c_spinspin]
 
+    def g_submit(self, n_iteration):
+
+        write_folder = Path(f"new_iteration_{n_iteration}/input_files")
+
+        cmd = ['bash', 'qsub_ROA_calc.inp.dqs']
+
+        executor = submitit.AutoExecutor(folder="log_test")
+        executor.update_parameters( 
+            timeout_min=4*60,
+            mem_gb=80,
+            cpus_per_task=36,
+            slurm_additional_parameters={'qos':'backfill'})
+
+        jobs = []
+        for i in range(self.generate_structures):
+            wdir = write_folder / f"f{n_iteration}_{i:05d}"
+            function = submitit.helpers.CommandFunction(cmd, cwd=wdir)
+            job = executor.submit(function)
+            jobs.append(job)
+
+        outputs = [job.result() for job in jobs]
+
+        logger.notice("Done")
 
     def initialize_structures(self):
 
