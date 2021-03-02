@@ -4,8 +4,10 @@ from pathlib import Path
 import numpy as np
 import matplotlib.pyplot as plt
 import mdtraj as md
+import submitit
 
 from mdshark import \
+    common, \
     extract_sim_data, \
     prepare_g_input_files, \
     m_molecular_features, \
@@ -18,104 +20,126 @@ from mdshark import \
     generate_n_iteration_MD_structures, \
     generate_initial_MD_structures
 
+from mdshark.common import logger
 
-def main():
+class MDSharkOptimizer:
+    def __init__(self, top_dir):
 
-    ##################################
-    ### General settings
-    n_iteration = 1 # n iteration
-    calculate_all_C = True # if True, then all iterations will be calculated (to see the progress), else only latest one
-    generate_structures = 50 # number of generated structures
-    # Load molecular features 
-    molecule_features = m_molecular_features.class_molecule_features('needed_files/md_inp_files/*.gro','needed_files/md_inp_files/*.itp')
+        os.chdir(top_dir)
+
+        ##################################
+        ### General settings
+        self.n_iteration = 0 # n iteration
+        self.calculate_all_C = True # if True, then all iterations will be calculated (to see the progress), else only latest one
+        self.generate_structures = 5 # number of generated structures
+        # Load molecular features 
+        self.molecule_features = m_molecular_features.class_molecule_features(
+            'needed_files/md_inp_files/*.gro','needed_files/md_inp_files/*.itp')
+
+        ##################################
+        ### MD optimization settings
+        self.freeze_amide_bonds_C = False # do you want to freeze amide bonds (HNCO dihedral andles) in original conformation?
+        self.NUM_WORKERS_C = 3 # this speeds up optimization of MD frames, ! be careful with number > 2x # of cpus
+
+        ##################################
+        ### Obtain optimized weights
+        # overide optimization default settings ###
+        
+        # either a single number, e.g. 30; or a list of values for each iteration, e.g. [30,40,50,...]
+        self.stop_optimization_when_n_structures_reached_C = 30
+        # self.stop_optimization_when_n_structures_reached_C = [30 for i in range(n_iteration+1)]
+        
+        self.bias_n_structures_reached_C = False # when bias_n_structures_reached_f_C [%] of the structures are non-zero, proceed to subsequent opt round.
+        self.bias_n_structures_reached_f_C = 1/2
+        self.recalculate_raman_shifting_function_C = True
+        self.set_raman_shifting_function_parameters_range_C = [(0.95,1.1),(0.95,1.0),(15,1000),(500,2500)]
+        self.relative_optimization_weights_C = [1,1,1,1,1] # Ram/ROA/H/C/Jij
+        self.set_K_nd_C = 2/3  # set what % to sample according to the optimized distribution, rest will be random
+        self.do_not_filter_C = True # do not filter H/C/Jij dat
+
+        # Experimental data for? iteration 1 or more
+        ed_raman = 1
+        ed_roa = 1
+        ed_shifts_H = 1
+        ed_shifts_C = 1
+        ed_spinspin = 1
+        self.experimental_data_av = [ed_raman, ed_roa, ed_shifts_H, ed_shifts_C, ed_spinspin]
+
+        ##################################
+        ### simulation data extraction ###
+        # Raman/ROA data extraction -> use what freq range you need (calculating bigger interval costs more)
+        self.raman_frequency_range_C = [50, 2000]
+        # Use Raman shifting fuction? If False, freqeuncies will not be shifted
+        self.use_raman_shifting_function_C = True
+
+        ##################################
+        ### QM calculations settings
+        # used VDW parameters in QM calculations
+        self.oniom_vdw_parameters_kwargs = {'oniom_vdw_parameters_C':'glycam_saccharides'}
+        # self.oniom_vdw_parameters_kwargs = {'oniom_vdw_parameters_C':'proteins_1'}
+        # self.oniom_vdw_parameters_kwargs = {'oniom_vdw_parameters_C':'proteins_2'}
+        # self.oniom_vdw_parameters_kwargs = {'oniom_vdw_parameters_C':'charmm-cgenff','mol_file_path' : 'needed_files/md_inp_files/mol.itp','ffnonbonded_file_path' : 'needed_files/md_inp_files/top/charmm36-mar2019.ff/ffnonbonded.itp'}
+
+        # prepare QM input files method
+        self.prepare_qm_input_files_C = 'm2_raman_high' # m1_raman_low/m2_raman_high
+
+        # gaussian input files nproc & memory
+        memory = 40
+        nproc = 36
+        self.qm_m_nproc = [memory, nproc]
+
+        # Calculate Raman/ROA  x H/C NMR shifts  x Jij couplings?
+        c_vib = 1
+        c_shifts = 1
+        c_spinspin = 1
+        self.w_calculate = [c_vib, c_shifts, c_spinspin]
 
 
-    ##################################
-    ### MD optimization settings
-    freeze_amide_bonds_C = False # do you want to freeze amide bonds (HNCO dihedral andles) in original conformation?
-    NUM_WORKERS_C = 3 # this speeds up optimization of MD frames, ! be careful with number > 2x # of cpus
+    def initialize_structures(self):
 
+        logger.notice("Generating initial structures")
 
-    ##################################
-    ### Obtain optimized weights
-    # overide optimization default settings ###
-    stop_optimization_when_n_structures_reached_C = [30 for i in range(n_iteration+1)] # either a single number, e.g. 30; or a list of values for each iteration, e.g. [30,40,50,...]
-    bias_n_structures_reached_C = False # when bias_n_structures_reached_f_C [%] of the structures are non-zero, proceed to subsequent opt round.
-    bias_n_structures_reached_f_C = 1/2
-    recalculate_raman_shifting_function_C = True
-    set_raman_shifting_function_parameters_range_C = [(0.95,1.1),(0.95,1.0),(15,1000),(500,2500)]
-    relative_optimization_weights_C = [1,1,1,1,1] # Ram/ROA/H/C/Jij
-    set_K_nd_C = 2/3  # set what % to sample according to the optimized distribution, rest will be random
-    do_not_filter_C = True # do not filter H/C/Jij dat
-
-    # Experimental data for? iteration 1 or more
-    ed_raman = 1
-    ed_roa = 1
-    ed_shifts_H = 1
-    ed_shifts_C = 1
-    ed_spinspin = 1
-    experimental_data_av=[ed_raman,ed_roa,ed_shifts_H,ed_shifts_C,ed_spinspin]
-
-
-    ##################################
-    ### simulation data extraction ###
-    # Raman/ROA data extraction -> use what freq range you need (calculating bigger interval costs more)
-    raman_frequency_range_C = [50,2000]
-    # Use Raman shifting fuction? If False, freqeuncies will not be shifted
-    use_raman_shifting_function_C = True
-
-    ##################################
-    ### QM calculations settings
-    # used VDW parameters in QM calculations
-    oniom_vdw_parameters_kwargs = {'oniom_vdw_parameters_C':'glycam_saccharides'}
-    # oniom_vdw_parameters_kwargs = {'oniom_vdw_parameters_C':'proteins_1'}
-    # oniom_vdw_parameters_kwargs = {'oniom_vdw_parameters_C':'proteins_2'}
-    # oniom_vdw_parameters_kwargs = {'oniom_vdw_parameters_C':'charmm-cgenff','mol_file_path' : 'needed_files/md_inp_files/mol.itp','ffnonbonded_file_path' : 'needed_files/md_inp_files/top/charmm36-mar2019.ff/ffnonbonded.itp'}
-
-    # prepare QM input files method
-    prepare_qm_input_files_C = 'm2_raman_high' # m1_raman_low/m2_raman_high
-
-    # gaussian input files nproc & memory
-    memory = 40
-    nproc = 36
-    qm_m_nproc = [memory,nproc]
-
-    # Calculate Raman/ROA  x H/C NMR shifts  x Jij couplings?
-    c_vib = 1
-    c_shifts = 1
-    c_spinspin = 1
-    w_calculate = [c_vib,c_shifts,c_spinspin]
-
-    print('test')
-    return
-
-    # ===================================================================
-
-    if n_iteration == 0:
+        if self.n_iteration != 0:
+            raise(ValueError(f"Iteration number expected to be zero, instead is %d", self.n_iteration))
         
         # Generate initial plumed file and assign it, generate index file, write fromacs mdp files
-        molecule_features.write_plumed('needed_files/plumed_original.dat')
-        molecule_features.gro_to_pdb()
-        molecule_features.make_index_file()
-        molecule_features.write_gromacs_mdp_files()
+        self.molecule_features.write_plumed('needed_files/plumed_original.dat')
+        self.molecule_features.gro_to_pdb()
+        self.molecule_features.make_index_file()
+        self.molecule_features.write_gromacs_mdp_files()
 
         # Generate new structures - initial 0th simualtion
-        generate_initial_MD_structures.generate_new_structures(molecule_features,n_iteration,generate_structures,freeze_amide_bonds = freeze_amide_bonds_C)
+        generate_initial_MD_structures.generate_new_structures(
+                self.molecule_features,
+                self.n_iteration,
+                self.generate_structures,
+                freeze_amide_bonds=self.freeze_amide_bonds_C)
 
         # optimize MD frames - usable for nth iteration
-        optimize_MD_frame.optimize_individual_frames(n_iteration,generate_structures,molecule_features,num_workers = NUM_WORKERS_C,freeze_amide_bonds = freeze_amide_bonds_C)
+        optimize_MD_frame.optimize_individual_frames(
+                self.n_iteration,
+                self.generate_structures,
+                self.molecule_features,
+                num_workers=self.NUM_WORKERS_C,
+                freeze_amide_bonds=self.freeze_amide_bonds_C)
 
         # Generate gaussian input files
-        prepare_qm_input_files_kwargs = {'method':prepare_qm_input_files_C,**oniom_vdw_parameters_kwargs}
-        prepare_g_input_files.prepare_qm_input_files(molecule_features,n_iteration,w_calculate,qm_m_nproc,**prepare_qm_input_files_kwargs)    
+        prepare_g_input_files.prepare_qm_input_files(
+                self.molecule_features,
+                self.n_iteration,
+                self.w_calculate,
+                self.qm_m_nproc,
+                method=self.prepare_qm_input_files_C,
+                **self.oniom_vdw_parameters_kwargs)
         
-        print("Structures + qm input files generated. Proceed to iteration 1.")
+        logger.success("Structures + qm input files generated. Proceed to iteration 1.")
 
         # rsync -av --delete /home/ondrej/repo/vlada_optim_sugars/sugaroptim/glc_bm_test/new_iteration_0/input_files/ aurum:/home1/tichacek/sugaroptim/glc_bm_test/new_iteration_0/input_files/
         # rsync -av /home/ondrej/repo/vlada_optim_sugars/sugaroptim/scripts/submit_gaussian.sh aurum:/home1/tichacek/sugaroptim/glc_bm_test/new_iteration_0/
 
         # rsync -av aurum:/home1/tichacek/sugaroptim/glc_bm_test/new_iteration_0/input_files/ /home/ondrej/repo/vlada_optim_sugars/sugaroptim/glc_bm_test/new_iteration_0/input_files/
 
+if False:
     # ===================================================================
 
     # Extract data from iteration X
