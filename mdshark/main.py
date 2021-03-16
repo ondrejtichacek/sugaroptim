@@ -110,40 +110,74 @@ class MDSharkOptimizer:
             job = run_submit(cmd, cwd, 'gaussian', wait_complete=False)
             jobs.append(job)
 
-        outputs = [job.result() for job in jobs]
+
+        num_failed = 0
+        for job, i in enumerate(jobs):
+            try:
+                output = job.result()
+            except submitit.core.utils.FailedJobError:
+                num_failed += 1
+                logger.warning(f"Job {i} failed.")
+        
+        if num_failed > 0:
+            logger.warning(f"{num_failed} out of {self.generate_structures} jobs failed.")
+
+            tol = 0.1
+
+            if num_failed / self.generate_structures > tol:
+                logger.critical(f"{100 * num_failed / self.generate_structures} % of jobs failed. Maybe check the output files...")
 
         logger.notice("Done")
 
-    def initialize_structures(self):
+    def initialize_structures(self, weights=None, all_data=None):
 
         logger.notice("Generating initial structures")
 
-        if self.n_iteration != 0:
-            raise(ValueError(f"Iteration number expected to be zero, instead is %d", self.n_iteration))
-        
-        # Generate initial plumed file and assign it, generate index file, write fromacs mdp files
-        self.molecule_features.write_plumed('needed_files/plumed_original.dat')
-        self.molecule_features.gro_to_pdb()
-        self.molecule_features.make_index_file()
-        self.molecule_features.write_gromacs_mdp_files()
+        if self.n_iteration == 0:
+    
+            # Generate initial plumed file and assign it, generate index file, write fromacs mdp files
+            self.molecule_features.write_plumed('needed_files/plumed_original.dat')
+            self.molecule_features.gro_to_pdb()
+            self.molecule_features.make_index_file()
+            self.molecule_features.write_gromacs_mdp_files()
 
-        # Generate new structures - initial 0th simualtion
-        # generate_initial_MD_structures.generate_new_structures(
-        #         self.molecule_features,
-        #         self.n_iteration,
-        #         self.generate_structures,
-        #         freeze_amide_bonds=self.freeze_amide_bonds_C)        
+            # Generate new structures - initial 0th simualtion
+            # generate_initial_MD_structures.generate_new_structures(
+            #         self.molecule_features,
+            #         self.n_iteration,
+            #         self.generate_structures,
+            #         freeze_amide_bonds=self.freeze_amide_bonds_C)        
 
-        function = generate_initial_MD_structures.generate_new_structures
-        args = (self.molecule_features,
-                self.n_iteration,
-                self.generate_structures)
-        kwargs = {'freeze_amide_bonds':self.freeze_amide_bonds_C}
+            function = generate_initial_MD_structures.generate_new_structures
+            args = (self.molecule_features,
+                    self.n_iteration,
+                    self.generate_structures)
+            kwargs = {'freeze_amide_bonds':self.freeze_amide_bonds_C}
 
-        executor = get_default_executor('plumed')
-        job = executor.submit(function, *args, **kwargs)
+            executor = get_default_executor('plumed')
+            job = executor.submit(function, *args, **kwargs)
 
-        output = job.result()
+            output = job.result()
+
+        elif self.n_iteration > 0:
+
+            # assign final distribution
+            final_distribution = calculate_optimized_features_distribution.calculate_new_distribution(
+                    weights,
+                    all_data.sim,
+                    self.molecule_features,
+                    K=self.set_K_nd_C)
+
+            # generate new structures using optimized distributions
+            generate_n_iteration_MD_structures.generate_new_structures(
+                    self.molecule_features,
+                    self.n_iteration,
+                    self.generate_structures,
+                    final_distribution,
+                    freeze_amide_bonds=freeze_amide_bonds_C)
+
+        else:
+            raise(ValueError(f"n_iteration is {self.n_iteration}"))
 
         # optimize MD frames - usable for nth iteration
         optimize_MD_frame.optimize_individual_frames(
@@ -162,7 +196,8 @@ class MDSharkOptimizer:
                 method=self.prepare_qm_input_files_C,
                 **self.oniom_vdw_parameters_kwargs)
         
-        logger.success("Structures + qm input files generated. Proceed to iteration 1.")
+        logger.success(f"Structures + qm input files generated. Proceed to iteration {self.n_iteration + 1}.")
+        
 
     @staticmethod
     def calculate_features_after_qm_optimization(molecular_features, directory):
@@ -357,21 +392,3 @@ if False:
     for i in range(len(spectra_data)):
         print("iteration {0}".format(i))
         spectra_data[i].plot_raman()
-
-    # ===================================================================
-    # if satisfied with the result, then make a new iteration
-    if n_iteration >= 1:
-        # assign final distribution
-        final_distribution = calculate_optimized_features_distribution.\
-                        calculate_new_distribution(weights,all_data.sim,self.molecule_features,K=self.set_K_nd_C)
-
-        # generate new structures using optimized distributions
-        generate_n_iteration_MD_structures.generate_new_structures\
-                (self.molecule_features,n_iteration,self.generate_structures,final_distribution,freeze_amide_bonds = freeze_amide_bonds_C)
-
-        # optimize MD frames - usable for nth iteration
-        optimize_MD_frame.optimize_individual_frames(n_iteration,self.generate_structures,self.molecule_features,num_workers = NUM_WORKERS_C,freeze_amide_bonds = freeze_amide_bonds_C)
-
-        # Generate gaussian input files
-        prepare_qm_input_files_kwargs = {'method':prepare_qm_input_files_C,**oniom_vdw_parameters_kwargs}
-        prepare_g_input_files.prepare_qm_input_files(self.molecule_features,n_iteration,w_calculate,qm_m_nproc,**prepare_qm_input_files_kwargs)    
