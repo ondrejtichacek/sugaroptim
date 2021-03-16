@@ -1,9 +1,13 @@
 import os
 import sys
 import subprocess
+import submitit
+from submitit.core.utils import FailedJobError
 import logging
 
 assert sys.version_info >= (3, 6)
+
+from mdshark import config
 
 try:
     import coloredlogs, verboselogs
@@ -22,9 +26,71 @@ except ModuleNotFoundError:
     logger.setLevel(logging.DEBUG)
 
 
+def do_nothing():
+    pass
+
+
+def run_submit_multi(cmd, cwd, env_setup, wait_complete=True):
+
+    command = (config.environment_setup[env_setup]
+        + ["set -e", f"cd {cwd}"] 
+        + cmd 
+        + ["set +e"])
+
+    executor = submitit.AutoExecutor(folder="log_test")
+    executor.update_parameters( 
+        timeout_min=4*60,
+        mem_gb=80,
+        cpus_per_task=36,
+        slurm_setup=command,
+        slurm_additional_parameters=config.slurm_additional_parameters)
+
+    function = do_nothing
+
+    job = executor.submit(function)
+
+    if not wait_complete:
+        return job
+        
+    output = job.result()
+    # print(job.stderr())
+    # print(job.stdout())
+    return job
+
+
+def run_submit(cmd, cwd, env_setup, wait_complete=True):
+
+    executor = submitit.AutoExecutor(folder="log_test")
+    executor.update_parameters( 
+        timeout_min=4*60,
+        mem_gb=80,
+        cpus_per_task=36,
+        slurm_setup=config.environment_setup[env_setup],
+        slurm_additional_parameters=config.slurm_additional_parameters)
+
+    if isinstance(cmd, list):
+        pass
+    else:
+        cmd = cmd.split()
+
+    function = submitit.helpers.CommandFunction(cmd, verbose=True, cwd=cwd)
+
+    job = executor.submit(function)
+
+    if not wait_complete:
+        return job
+
+    output = job.result()
+    # print(job.stderr())
+    # print(job.stdout())
+    return job
+
+
 def run(cmd):
     try:
-        subprocess.run(cmd, shell=True, check=True, 
+        my_env = os.environ.copy()
+        # print(my_env)
+        subprocess.run(cmd, shell=True, check=True, env=my_env,
             stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 
     except subprocess.CalledProcessError as e:
@@ -45,3 +111,57 @@ def run(cmd):
             print(e.stderr.decode('utf-8'))
         
         raise(e)
+
+def run_submitit(command, cwd, verbose=False):
+    """
+    run compatible with submitit
+    """
+    full_command = command
+
+    env = os.environ.copy()
+
+    if verbose:
+        print(f"The following command is sent: \"{' '.join(full_command)}\"")
+    outlines: List[str] = []
+    with subprocess.Popen(
+        full_command,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        shell=False,
+        cwd=cwd,
+        env=env,
+    ) as process:
+        assert process.stdout is not None
+        try:
+            for line in iter(process.stdout.readline, b""):
+                if not line:
+                    break
+                outlines.append(line.decode().strip())
+                if verbose:
+                    print(outlines[-1], flush=True)
+        except Exception as e:
+            process.kill()
+            process.wait()
+            raise FailedJobError("Job got killed for an unknown reason.") from e
+        stderr = process.communicate()[1]  # we already got stdout
+        stdout = "\n".join(outlines)
+        retcode = process.poll()
+        if stderr and (retcode or verbose):
+            print(stderr.decode(), file=sys.stderr)
+        if retcode:
+            subprocess_error = subprocess.CalledProcessError(
+                retcode, process.args, output=stdout, stderr=stderr
+            )
+            raise FailedJobError(stderr.decode()) from subprocess_error
+    return stdout
+
+def get_default_executor(env_setup):
+    executor = submitit.AutoExecutor(folder="log_test")        
+    executor.update_parameters(
+            timeout_min=4*60,
+            mem_gb=90,
+            cpus_per_task=36,
+            slurm_setup=config.environment_setup[env_setup],
+            slurm_additional_parameters=config.slurm_additional_parameters)
+
+    return executor

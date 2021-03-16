@@ -5,9 +5,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 import mdtraj as md
 import submitit
+from dataclasses import dataclass
 
 from mdshark import \
     common, \
+    config, \
     extract_sim_data, \
     prepare_g_input_files, \
     m_molecular_features, \
@@ -20,21 +22,27 @@ from mdshark import \
     generate_n_iteration_MD_structures, \
     generate_initial_MD_structures
 
-from mdshark.common import logger
+from mdshark.common import run, run_submit, logger, get_default_executor
 
+@dataclass
 class MDSharkOptimizer:
-    def __init__(self, top_dir):
+    top_dir: str = None
+    generate_structures: int = 50 # number of generated structures
+    stop_optimization_when_n_structures_reached_C: int = None
+    molecule_features: m_molecular_features.MoleculeFeatures = None
 
-        os.chdir(top_dir)
+    def __post_init__(self):
+
+        if self.stop_optimization_when_n_structures_reached_C is None:
+            self.stop_optimization_when_n_structures_reached_C = 3 * self.generate_structures // 5
+
+        os.chdir(self.top_dir)
+
+        self.n_iteration = 0 # n iteration
 
         ##################################
         ### General settings
-        self.n_iteration = 0 # n iteration
         self.calculate_all_C = True # if True, then all iterations will be calculated (to see the progress), else only latest one
-        self.generate_structures = 5 # number of generated structures
-        # Load molecular features 
-        self.molecule_features = m_molecular_features.class_molecule_features(
-            'needed_files/md_inp_files/*.gro','needed_files/md_inp_files/*.itp')
 
         ##################################
         ### MD optimization settings
@@ -44,10 +52,6 @@ class MDSharkOptimizer:
         ##################################
         ### Obtain optimized weights
         # overide optimization default settings ###
-        
-        # either a single number, e.g. 30; or a list of values for each iteration, e.g. [30,40,50,...]
-        self.stop_optimization_when_n_structures_reached_C = 30
-        # self.stop_optimization_when_n_structures_reached_C = [30 for i in range(n_iteration+1)]
         
         self.bias_n_structures_reached_C = False # when bias_n_structures_reached_f_C [%] of the structures are non-zero, proceed to subsequent opt round.
         self.bias_n_structures_reached_f_C = 1/2
@@ -75,10 +79,10 @@ class MDSharkOptimizer:
         ##################################
         ### QM calculations settings
         # used VDW parameters in QM calculations
-        self.oniom_vdw_parameters_kwargs = {'oniom_vdw_parameters_C':'glycam_saccharides'}
-        # self.oniom_vdw_parameters_kwargs = {'oniom_vdw_parameters_C':'proteins_1'}
-        # self.oniom_vdw_parameters_kwargs = {'oniom_vdw_parameters_C':'proteins_2'}
-        # self.oniom_vdw_parameters_kwargs = {'oniom_vdw_parameters_C':'charmm-cgenff','mol_file_path' : 'needed_files/md_inp_files/mol.itp','ffnonbonded_file_path' : 'needed_files/md_inp_files/top/charmm36-mar2019.ff/ffnonbonded.itp'}
+        self.oniom_vdw_parameters_kwargs = {'oniom_vdw_parameters_C': 'glycam_saccharides'}
+        # self.oniom_vdw_parameters_kwargs = {'oniom_vdw_parameters_C': 'proteins_1'}
+        # self.oniom_vdw_parameters_kwargs = {'oniom_vdw_parameters_C': 'proteins_2'}
+        # self.oniom_vdw_parameters_kwargs = {'oniom_vdw_parameters_C': 'charmm-cgenff', 'mol_file_path': 'needed_files/md_inp_files/mol.itp', 'ffnonbonded_file_path': 'needed_files/md_inp_files/top/charmm36-mar2019.ff/ffnonbonded.itp'}
 
         # prepare QM input files method
         self.prepare_qm_input_files_C = 'm2_raman_high' # m1_raman_low/m2_raman_high
@@ -100,18 +104,10 @@ class MDSharkOptimizer:
 
         cmd = ['bash', 'qsub_ROA_calc.inp.dqs']
 
-        executor = submitit.AutoExecutor(folder="log_test")
-        executor.update_parameters( 
-            timeout_min=4*60,
-            mem_gb=80,
-            cpus_per_task=36,
-            slurm_additional_parameters={'qos':'backfill'})
-
         jobs = []
         for i in range(self.generate_structures):
-            wdir = write_folder / f"f{n_iteration}_{i:05d}"
-            function = submitit.helpers.CommandFunction(cmd, cwd=wdir)
-            job = executor.submit(function)
+            cwd = write_folder / f"f{n_iteration}_{i:05d}"            
+            job = run_submit(cmd, cwd, 'gaussian', wait_complete=False)
             jobs.append(job)
 
         outputs = [job.result() for job in jobs]
@@ -132,11 +128,22 @@ class MDSharkOptimizer:
         self.molecule_features.write_gromacs_mdp_files()
 
         # Generate new structures - initial 0th simualtion
-        generate_initial_MD_structures.generate_new_structures(
-                self.molecule_features,
+        # generate_initial_MD_structures.generate_new_structures(
+        #         self.molecule_features,
+        #         self.n_iteration,
+        #         self.generate_structures,
+        #         freeze_amide_bonds=self.freeze_amide_bonds_C)        
+
+        function = generate_initial_MD_structures.generate_new_structures
+        args = (self.molecule_features,
                 self.n_iteration,
-                self.generate_structures,
-                freeze_amide_bonds=self.freeze_amide_bonds_C)
+                self.generate_structures)
+        kwargs = {'freeze_amide_bonds':self.freeze_amide_bonds_C}
+
+        executor = get_default_executor('plumed')
+        job = executor.submit(function, *args, **kwargs)
+
+        output = job.result()
 
         # optimize MD frames - usable for nth iteration
         optimize_MD_frame.optimize_individual_frames(
@@ -157,121 +164,143 @@ class MDSharkOptimizer:
         
         logger.success("Structures + qm input files generated. Proceed to iteration 1.")
 
-        # rsync -av --delete /home/ondrej/repo/vlada_optim_sugars/sugaroptim/glc_bm_test/new_iteration_0/input_files/ aurum:/home1/tichacek/sugaroptim/glc_bm_test/new_iteration_0/input_files/
-        # rsync -av /home/ondrej/repo/vlada_optim_sugars/sugaroptim/scripts/submit_gaussian.sh aurum:/home1/tichacek/sugaroptim/glc_bm_test/new_iteration_0/
+    @staticmethod
+    def calculate_features_after_qm_optimization(molecular_features, directory):
+        """
+        calculate features after QM optimization (Plumed)
+        """
 
-        # rsync -av aurum:/home1/tichacek/sugaroptim/glc_bm_test/new_iteration_0/input_files/ /home/ondrej/repo/vlada_optim_sugars/sugaroptim/glc_bm_test/new_iteration_0/input_files/
+        for file_i in glob.glob(directory+'/f*'):
+            molecular_features.write_plumed_print_features(file_i+'/plumed_features.dat',file_i+'/',1)
+            run("printf \"0 \\n\"|gmx trjconv -f {0} -s {0} -o {1}/trj_tmp.xtc".format(file_i+"/structure_final.gro",file_i))
+            run("plumed driver --plumed {0}/plumed_features.dat --mf_xtc {0}/trj_tmp.xtc".format(file_i))
+            
+            if Path('needed_files/plumed_additional_features.dat').exists():
+                molecular_features.write_additional_plumed_print_features(file_i+'/plumed_additional_features.dat',file_i+'/')
+                run("plumed driver --plumed {0}/plumed_additional_features.dat --mf_xtc {0}/trj_tmp.xtc".format(file_i))
 
-if False:
-    # ===================================================================
+    def calculate_features(self, n_iteration):
 
-    # Extract data from iteration X
-    if n_iteration >= 1:
+        # Extract data from iteration X
+        assert(n_iteration >= 1)
         
         it_analyze = n_iteration - 1
-        extract_sim_data.calculate_all_sim_data('new_iteration_{0}'.format(it_analyze),molecule_features,\
-                                                use_raman_shifting_function = use_raman_shifting_function_C,\
-                                                raman_frequency_range = raman_frequency_range_C,\
-                                            )
+        extract_sim_data.calculate_all_sim_data(
+                f'new_iteration_{it_analyze}',
+                self.molecule_features,
+                use_raman_shifting_function=self.use_raman_shifting_function_C,
+                raman_frequency_range=self.raman_frequency_range_C)
 
-        # calculate features after QM optimization (Plumed)
-        def calculate_features_after_qm_optimization(molecular_features,directory):
-            for file_i in glob.glob(directory+'/f*'):
-                molecule_features.write_plumed_print_features(file_i+'/plumed_features.dat',file_i+'/',1)
-                os.system("printf \"0 \\n\"|gmx trjconv -f {0} -s {0} -o {1}/trj_tmp.xtc".format(file_i+"/structure_final.gro",file_i))
-                os.system("plumed driver --plumed {0}/plumed_features.dat --mf_xtc {0}/trj_tmp.xtc".format(file_i))
-                
-                if Path('needed_files/plumed_additional_features.dat').exists():
-                    molecule_features.write_additional_plumed_print_features(file_i+'/plumed_additional_features.dat',file_i+'/')
-                    os.system("plumed driver --plumed {0}/plumed_additional_features.dat --mf_xtc {0}/trj_tmp.xtc".format(file_i))
+        self.calculate_features_after_qm_optimization(
+                self.molecule_features,
+                f'new_iteration_{it_analyze}/input_files')
 
-        calculate_features_after_qm_optimization(molecule_features,'new_iteration_{0}/input_files'.format(it_analyze))      
+    def optimize(self, n_iteration, stop_optimization_when_n_structures_reached_C=None):
+        """
+        Calculate progressively the new distribution and check convergence
+        """
 
-    # ===================================================================
+        if stop_optimization_when_n_structures_reached_C is None:
+            stop_optimization_when_n_structures_reached_C = self.stop_optimization_when_n_structures_reached_C
 
-    # Calculate progressively the new distribution and check convergence
-    new_distribution = []
-    spectra_data = []
-    error_data_array = []
+        self.new_distribution = []
+        self.spectra_data = []
+        error_data_array = []
 
-    if n_iteration >= 1:
+        assert(n_iteration >= 1)
         
-        if calculate_all_C == True:
+        if self.calculate_all_C == True:
 
-            all_data = load_sim_exp_data.data('new_iteration_0',0,molecule_features,experimental_data_av, do_not_filter = do_not_filter_C)
-            weights0 = np.ones(len(all_data.sim.file_array))/np.sum(np.ones(len(all_data.sim.file_array))) 
-            spectra_data.append(store_and_plot_spectra.spectra(weights0,all_data,experimental_data_av))
+            all_data = load_sim_exp_data.data(
+                    'new_iteration_0', 0, self.molecule_features, 
+                    self.experimental_data_av,
+                    do_not_filter=self.do_not_filter_C)
+
+            weights0 = np.ones(len(all_data.sim.file_array))
+            weights0 /= np.sum(weights0)
+
+            self.spectra_data.append(store_and_plot_spectra.spectra(weights0,all_data,self.experimental_data_av))
 
             # calculate new distribution 
-            new_distribution.append(calculate_optimized_features_distribution.\
-            calculate_new_distribution(weights0,all_data.sim,molecule_features,K = 1))
+            self.new_distribution.append(calculate_optimized_features_distribution.\
+                    calculate_new_distribution(weights0,all_data.sim,self.molecule_features,K=1))
 
-            for i in np.arange(n_iteration):
+            for i in range(n_iteration):
 
                 # load data
-                path = 'new_iteration_[0-{0}]'.format(i)
-                all_data = load_sim_exp_data.data(path,i+1,molecule_features,experimental_data_av, do_not_filter = do_not_filter_C)
+                path = f'new_iteration_[0-{i}]'
+                all_data = load_sim_exp_data.data(
+                        path, i+1, self.molecule_features,
+                        self.experimental_data_av,
+                        do_not_filter=self.do_not_filter_C)
 
                 # optimize the weights
-            #     stored_results = optimize_weights.optimize_weights(all_data,experimental_data_av,\
-                stored_results = optimize_weights.optimize_weights(all_data,experimental_data_av,\
-                                                        recalculate_raman_shifting_function = recalculate_raman_shifting_function_C,\
-                                                        set_raman_shifting_function_parameters_range = set_raman_shifting_function_parameters_range_C,\
-                                                        stop_optimization_when_n_structures_reached = stop_optimization_when_n_structures_reached_C,\
-                                                        bias_n_structures_reached = bias_n_structures_reached_C, \
-                                                        bias_n_structures_reached_f = bias_n_structures_reached_f_C, \
-                                                        relative_optimization_weights = relative_optimization_weights_C,\
-                                                        )
+                stored_results = optimize_weights.optimize_weights(
+                        all_data, self.experimental_data_av,
+                        recalculate_raman_shifting_function=self.recalculate_raman_shifting_function_C,
+                        set_raman_shifting_function_parameters_range=self.set_raman_shifting_function_parameters_range_C,
+                        stop_optimization_when_n_structures_reached=stop_optimization_when_n_structures_reached_C,
+                        bias_n_structures_reached=self.bias_n_structures_reached_C,
+                        bias_n_structures_reached_f=self.bias_n_structures_reached_f_C,
+                        relative_optimization_weights=self.relative_optimization_weights_C)
 
                 weights = stored_results.weights
                 error = stored_results.error
                 error_data_array_i = stored_results.error_data_array_i
 
                 # when converged - we can plot it
-                spectra_data.append(store_and_plot_spectra.spectra(weights,all_data,experimental_data_av))
+                self.spectra_data.append(store_and_plot_spectra.spectra(weights,all_data,self.experimental_data_av))
 
                 # calculate new distribution 
-                new_distribution.append(calculate_optimized_features_distribution.\
-                            calculate_new_distribution(weights,all_data.sim,molecule_features,K = set_K_nd_C))
+                self.new_distribution.append(calculate_optimized_features_distribution.\
+                        calculate_new_distribution(weights,all_data.sim,self.molecule_features,K=self.set_K_nd_C))
 
                 # append the error data array
                 error_data_array.append(error_data_array_i)
 
-
-            # check the convergence
-            f, ax = plt.subplots(new_distribution[0].nfeatures,1,figsize=(7,new_distribution[0].nfeatures*5))
-
-            for i in np.arange(np.shape(spectra_data)[0]):
-                nd=new_distribution[i]
-                for j in nd.importance_list[:,0]:
-                    idx=int(j)
-                    ax[idx].plot(nd.nd_array[idx][0],nd.nd_array[idx][3],label=i)
-                    ax[idx].title.set_text(all_data.sim.features_def_list[idx])
-                    ax[idx].legend(loc="upper right",fontsize=20)
-            f.subplots_adjust(hspace=0.4)
-            plt.show()   
-
-
-            for i in np.arange(np.shape(spectra_data)[0]):
-                spectra_data[i].plot()
         else:
-            path = 'new_iteration_[0-{0}]'.format(n_iteration-1)
-            all_data = load_sim_exp_data.data(path,n_iteration,molecule_features,experimental_data_av, do_not_filter = do_not_filter_C)
+            path = f'new_iteration_[0-{n_iteration-1}]'
+            all_data = load_sim_exp_data.data(
+                    path, n_iteration, self.molecule_features,
+                    self.experimental_data_av, do_not_filter=self.do_not_filter_C)
+            
             # optimize the weights
-            stored_results = optimize_weights.optimize_weights(all_data,experimental_data_av,\
-                                                    recalculate_raman_shifting_function = recalculate_raman_shifting_function_C,\
-                                                    set_raman_shifting_function_parameters_range = set_raman_shifting_function_parameters_range_C,\
-                                                    stop_optimization_when_n_structures_reached = stop_optimization_when_n_structures_reached_C,\
-                                                    bias_n_structures_reached = bias_n_structures_reached_C, \
-                                                    bias_n_structures_reached_f = bias_n_structures_reached_f_C, \
-                                                    relative_optimization_weights = relative_optimization_weights_C,\
-                                                    )
+            stored_results = optimize_weights.optimize_weights(
+                    all_data, self.experimental_data_av,
+                    recalculate_raman_shifting_function=self.recalculate_raman_shifting_function_C,
+                    set_raman_shifting_function_parameters_range=self.set_raman_shifting_function_parameters_range_C,
+                    stop_optimization_when_n_structures_reached=stop_optimization_when_n_structures_reached_C,
+                    bias_n_structures_reached=self.bias_n_structures_reached_C,
+                    bias_n_structures_reached_f=self.bias_n_structures_reached_f_C,
+                    relative_optimization_weights=self.relative_optimization_weights_C)
+
             weights = stored_results.weights
             error_data_array_i = stored_results.error_data_array_i
+            
             # append the error data array
             error_data_array.append(error_data_array_i)   
-            spectra_data.append(store_and_plot_spectra.spectra(weights,all_data,experimental_data_av))
+            self.spectra_data.append(store_and_plot_spectra.spectra(weights,all_data,self.experimental_data_av))
+        
+        return all_data, error_data_array, stored_results
 
+    def convergence_plots(self, all_data):
+
+        f, ax = plt.subplots(self.new_distribution[0].nfeatures,1,figsize=(7,self.new_distribution[0].nfeatures*5))
+
+        for i in range(np.shape(self.spectra_data)[0]):
+            nd=self.new_distribution[i]
+            for j in nd.importance_list[:,0]:
+                idx = int(j)
+                ax[idx].plot(nd.nd_array[idx][0],nd.nd_array[idx][3],label=i)
+                ax[idx].title.set_text(all_data.sim.features_def_list[idx])
+                ax[idx].legend(loc="upper right",fontsize=20)
+        f.subplots_adjust(hspace=0.4)
+        plt.show()   
+
+        for i in range(np.shape(self.spectra_data)[0]):
+            self.spectra_data[i].plot()
+
+if False:
     # ===================================================================
     # Check last iteration errors
 
@@ -301,7 +330,9 @@ if False:
     plt.show()
         
     err = error_data_array_i[0][:-1]-error_data_array_i[-1][:-1]
-    proposed_weights = np.array(relative_optimization_weights_C)*np.array([1/(i/np.min(err[err>0])) if i != 0 else 1 for i in err])
+    proposed_weights = np.array(self.relative_optimization_weights_C)*np.array([1/(i/np.min(err[err>0])) if i != 0 else 1 for i in err])
+
+    weights = stored_results.weights
 
     print("# of non-zero structures/structures")
     print(np.sum(weights > 0.0001*np.max(weights)),len(weights))
@@ -309,7 +340,7 @@ if False:
     print("Proposed relative optimization weights")
     print(proposed_weights)   
     print("Previous rel opt weights")
-    print(relative_optimization_weights_C)
+    print(self.relative_optimization_weights_C)
 
     # ===================================================================
     # Check spectra
@@ -332,15 +363,15 @@ if False:
     if n_iteration >= 1:
         # assign final distribution
         final_distribution = calculate_optimized_features_distribution.\
-                        calculate_new_distribution(weights,all_data.sim,molecule_features,K = set_K_nd_C)
+                        calculate_new_distribution(weights,all_data.sim,self.molecule_features,K=self.set_K_nd_C)
 
         # generate new structures using optimized distributions
         generate_n_iteration_MD_structures.generate_new_structures\
-                (molecule_features,n_iteration,generate_structures,final_distribution,freeze_amide_bonds = freeze_amide_bonds_C)
+                (self.molecule_features,n_iteration,self.generate_structures,final_distribution,freeze_amide_bonds = freeze_amide_bonds_C)
 
         # optimize MD frames - usable for nth iteration
-        optimize_MD_frame.optimize_individual_frames(n_iteration,generate_structures,molecule_features,num_workers = NUM_WORKERS_C,freeze_amide_bonds = freeze_amide_bonds_C)
+        optimize_MD_frame.optimize_individual_frames(n_iteration,self.generate_structures,self.molecule_features,num_workers = NUM_WORKERS_C,freeze_amide_bonds = freeze_amide_bonds_C)
 
         # Generate gaussian input files
         prepare_qm_input_files_kwargs = {'method':prepare_qm_input_files_C,**oniom_vdw_parameters_kwargs}
-        prepare_g_input_files.prepare_qm_input_files(molecule_features,n_iteration,w_calculate,qm_m_nproc,**prepare_qm_input_files_kwargs)    
+        prepare_g_input_files.prepare_qm_input_files(self.molecule_features,n_iteration,w_calculate,qm_m_nproc,**prepare_qm_input_files_kwargs)    
