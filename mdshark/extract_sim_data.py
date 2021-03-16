@@ -12,6 +12,8 @@ import glob
 import mdtraj
 import sys
 
+from mdshark.common import run, run_submit, logger
+
 # for 3 bonds Jij
 Jij_intercept,Jij_slope = [0,1]
 # For 4 bond Jij
@@ -119,7 +121,7 @@ def get_nmr_shifts_data(wdir_a):
                         elif ls=='16':
                             atom_list[idx]=[idx+1,'S']
                         else:
-                            print('error-element not found')
+                            logger.critical('error-element not found')
                         an_c+=1
             break
         else:
@@ -409,7 +411,7 @@ def get_vib_data(wdir_a,kwargs_dict):
             use_raman_shifting_function = kwargs_dict['use_raman_shifting_function']
         except:
             use_raman_shifting_function = True
-            print("Use raman shifting function is not defined/ill defined, setting to True")
+            logger.warning("Use raman shifting function is not defined/ill defined, setting to True")
         if use_raman_shifting_function == True:
             with open(wdir_a+j+'/raman_scaling_function.dat','r') as f_sf:
                 par_a,par_b,par_c,par_d = np.loadtxt(f_sf)
@@ -440,7 +442,7 @@ def get_vib_data(wdir_a,kwargs_dict):
                     delete_file=1
 
         if delete_file ==1:
-            print('Wrong (****** problem) vib intensity, deleting {0}'.format(wdir_a+j))
+            logger.warning('Wrong (****** problem) vib intensity, deleting {0}'.format(wdir_a+j))
             shutil.rmtree(wdir_a+j)
             continue
 
@@ -530,7 +532,7 @@ def all_calculated(calculate_which_spectra,ipath):
         else:
             calculate_check=0
     if calculate_check==0:
-        print('Not all .log files found,deleting {0}'.format(ipath))
+        logger.warning('Not all .log files found,deleting {0}'.format(ipath))
         shutil.rmtree(ipath)
     return calculate_check
 
@@ -579,7 +581,7 @@ def normal_termination(calculate_which_spectra,ipath):
             normal_termination=0
     # End of checks - delete when not converged
     if normal_termination == 0:
-        print('deleting {0}'.format(ipath))
+        logger.warning('deleting {0}'.format(ipath))
         shutil.rmtree(ipath)
     return normal_termination
 
@@ -592,9 +594,10 @@ def calculate_all_sim_data(path,molecule_features,**kwargs):
     for j in glob.glob(folders):
         fpath=j+'/input_files/'
         # Make some checks that eerything is fine
-        for ipath in glob.glob(j+'/input_files/f*'):
-
-
+        input_files = glob.glob(j+'/input_files/f*')
+        if not input_files:
+            raise(FileNotFoundError(f"No input files found in {fpath}"))
+        for ipath in input_files:
             # What spectra to calculate
             try:
                 calculate_which_spectra=what_to_calculate(ipath+'/calculate.dat')
@@ -607,30 +610,30 @@ def calculate_all_sim_data(path,molecule_features,**kwargs):
                 if calculated_check==0:
                     continue
             except FileNotFoundError:
-                print('Have not found calculate.dat file, deleting {0}'.format(ipath))
+                logger.warning(f'Have not found calculate.dat file, deleting {ipath}')
                 shutil.rmtree(ipath)
 
         # Now we know that we have all data needed we go through all directories
         if calculate_which_spectra[0] == 1:
-            print('Extracting vibrational data.')
+            logger.verbose('Extracting vibrational data.')
             get_vib_data(fpath,kwargs)
             pass
         if calculate_which_spectra[1] == 1:
-            print('Extracting NMR H/C data.')
+            logger.verbose('Extracting NMR H/C data.')
             # laod H/C linear regression parameters
             global intercept_H,slope_H,intercept_C,slope_C
             try:
                 intercept_H,slope_H = np.loadtxt(ipath+'/nmr_h_shifts_regression_par.dat')
                 intercept_C,slope_C = np.loadtxt(ipath+'/nmr_c_shifts_regression_par.dat')
             except:
-                print("NMR chemical shifts regression parameters have not been correctly defined!")
-                print("Using default parameters - this is not correct!")
+                logger.critical("NMR chemical shifts regression parameters have not been correctly defined!")
+                logger.critical("Using default parameters - this is not correct!")
                 intercept_H,slope_H = [30.97537,-0.94003] 
                 intercept_C,slope_C = [184.32152,-1.09499]
             get_nmr_shifts_data(fpath)
             pass
         if calculate_which_spectra[2] == 1:
-            print('Extracting NMR Jij couplings.')
+            logger.verbose('Extracting NMR Jij couplings.')
             get_nmr_spinspin_data(fpath,molecule_features)
             pass
 

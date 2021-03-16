@@ -4,6 +4,8 @@ import os
 import copy
 import sys
 
+from mdshark.common import run, run_submit, logger
+
 def S_fg_calculate(model_int,experimental_intensities):
     # For comparing Raman/ROA spectra - return a number between -1,1; 1 beeing the best
     S_fg = np.sum(\
@@ -59,10 +61,10 @@ def recalculate_shifting_function(sim_data,original_sim_data,exp_data,overall_we
         try:
             set_raman_shifting_function_parameters_range = kwargs_dict['set_raman_shifting_function_parameters_range']
         except:
-            print("Problem with setting raman shifting function parameters range. Falling back to default values.")
+            logger.warning("Problem with setting raman shifting function parameters range. Falling back to default values.")
             set_raman_shifting_function_parameters_range = [(0.95,1.05),(0.95,1.05),(15,1000),(500,2500)]
 
-    print("After optimization - recalculating Raman/ROA shifting function.")
+    logger.info("After optimization - recalculating Raman/ROA shifting function.")
           
     freq = original_sim_data[0][0][::1].copy()
     ram = np.dot(original_sim_data[1].transpose(),overall_weights_min)
@@ -246,13 +248,13 @@ def par_optimization(params,sim_data,exp_data,experimental_data_av,weights_indic
         try:
             set_raman_shifting_function_parameters_range = kwargs_dict['set_raman_shifting_function_parameters_range']
         except:
-            print("Problem with setting raman shifting function parameters range. Falling back to default values.")
+            looger.warning("Problem with setting raman shifting function parameters range. Falling back to default values.")
             set_raman_shifting_function_parameters_range = [(0.95,1.05),(0.95,1.05),(15,1000),(500,2500)]
 
     if (ed_raman == 1) and (recalculate_raman_shifting_function == True):
         if counter in [1_000,10_000,25_000,50_000,100_000,175_000,250_000,400_000] + [750_000 + 250_000*i for i in range(0,100)]:
 
-            print("step:{0}, recalculating Raman/ROA shifting function.".format(counter))
+            logger.info("step:{0}, recalculating Raman/ROA shifting function.".format(counter))
                   
             freq = original_sim_data[0][0][::1].copy()
             ram = np.dot(original_sim_data[1].transpose(),overall_weights_min)
@@ -330,7 +332,7 @@ def par_optimization(params,sim_data,exp_data,experimental_data_av,weights_indic
 
     # print diff
     if counter%10000 == 0:
-        print("step:{0}, non-zero structures: {8}, overall cost: {7:5.2f} ram:{1:5.2f} roa:{2:5.2f} sch:{3:5.2f} scc:{4:5.2f} jij: {5:5.2f} strb: {6:5.2f}"\
+        logger.info("step:{0}, non-zero structures: {8}, overall cost: {7:5.2f} ram:{1:5.2f} roa:{2:5.2f} sch:{3:5.2f} scc:{4:5.2f} jij: {5:5.2f} strb: {6:5.2f}"\
               .format(counter,ram_diff,roa_diff,sch_diff,scc_diff,jij_diff,str_bias,difference,structures_selected))
 
     if counter%1 == 0:
@@ -390,9 +392,9 @@ def optimize_weights(all_data,experimental_data_av,**kwargs):
     # Get relative optimization weights calculation
     try:
         relative_optimization_weights = kwargs['relative_optimization_weights']
-        print("Relative optimization weights are: ",kwargs['relative_optimization_weights'])
+        logger.info("Relative optimization weights are: ",kwargs['relative_optimization_weights'])
     except:
-        print("Problem with setting relative optimization weights - uset-input. Setting to defaults.")
+        logger.warning("Problem with setting relative optimization weights - uset-input. Setting to defaults.")
         relative_optimization_weights = [1,1,1,1,1]
     c_ram,c_roa,c_sch,c_scc,c_jij = relative_optimization_weights
 
@@ -443,9 +445,9 @@ def optimize_weights(all_data,experimental_data_av,**kwargs):
 
 
     b0=[(0,1) for i in range(len(sim_data[0]))]
-    print("First optimization round")
-    print("Optimization will stop when # structures is less than {}.".format(stop_optimization_when_n_structures_reached))
-    print("Best result obtained during the whole optimization will be picked.")
+    logger.notice("First optimization round")
+    logger.notice("Optimization will stop when # structures is less than {}.".format(stop_optimization_when_n_structures_reached))
+    logger.notice("Best result obtained during the whole optimization will be picked.")
     str_print = ''
     if experimental_data_av[0] == 1:
         str_print += 'Raman, '
@@ -457,7 +459,7 @@ def optimize_weights(all_data,experimental_data_av,**kwargs):
         str_print += 'C shifts, '
     if experimental_data_av[4] == 1:
         str_print += 'Jij, '
-    print("Counting errors of: ", str_print[:-2])
+    logger.info("Counting errors of: ", str_print[:-2])
 
     counter=0
     opt_result=optimize.differential_evolution(par_optimization,\
@@ -469,7 +471,9 @@ def optimize_weights(all_data,experimental_data_av,**kwargs):
             callback = callback_DE,\
             polish=True,)
 
-    print("Best results so far, it: ",error_min_counter,',sum_error: ',round(sum(error_data_array_i[error_min_counter][:-1]),2),',error array: ',np.round(error_data_array_i[error_min_counter],2))
+    logger.info(f"Best results so far, it: {error_min_counter}, "
+                f"sum_error: {round(sum(error_data_array_i[error_min_counter][:-1]),2)}, "
+                f"error array: {np.round(error_data_array_i[error_min_counter],2)}")
 
     weights = weights_min/np.sum(weights_min)
     fun_error = 1*error_min
@@ -482,7 +486,7 @@ def optimize_weights(all_data,experimental_data_av,**kwargs):
     nonzero_structures =  np.sum(weights > 0.0001*np.max(weights))
     it_counter = 0
     while (nonzero_structures > stop_optimization_when_n_structures_reached):
-        print("Subsequent optimization round {0}.".format(it_counter))
+        logger.info("Subsequent optimization round {0}.".format(it_counter))
         
         nonzero_structures =  np.sum(weights > 0.0001*np.max(weights))
         
@@ -538,7 +542,7 @@ def optimize_weights(all_data,experimental_data_av,**kwargs):
                 popsize=set_pop,\
                 maxiter=set_maxiter,)
 
-        print("Best results so far, it: ",error_min_counter,',sum_error: ',round(sum(error_data_array_i[error_min_counter][:-1]),2),',error array: ',np.round(error_data_array_i[error_min_counter],2))
+        logger.verbose("Best results so far, it: ",error_min_counter,',sum_error: ',round(sum(error_data_array_i[error_min_counter][:-1]),2),',error array: ',np.round(error_data_array_i[error_min_counter],2))
 
         weights_truncated = weights_min/np.sum(weights_min)
 
@@ -559,7 +563,7 @@ def optimize_weights(all_data,experimental_data_av,**kwargs):
         # Non zero structures
         nonzero_structures_after_opt =  np.sum(weights > 0.0001*np.max(weights))
         if nonzero_structures_after_opt < stop_optimization_when_n_structures_reached:
-            print("Obtained less than {0} structures. Stopping the optimization.".format(stop_optimization_when_n_structures_reached))
+            logger.notice("Obtained less than {0} structures. Stopping the optimization.".format(stop_optimization_when_n_structures_reached))
             nonzero_structures =  np.sum(weights > 0.0001*np.max(weights))
             break 
 
@@ -572,11 +576,11 @@ def optimize_weights(all_data,experimental_data_av,**kwargs):
             weights[sa] = 0
  
             if (np.sum(weights>0) < stop_optimization_when_n_structures_reached):
-                print("Obtained less than {0} structures. Stopping the optimization.".format(stop_optimization_when_n_structures_reached))
+                logger.notice("Obtained less than {0} structures. Stopping the optimization.".format(stop_optimization_when_n_structures_reached))
  
         # set a stop so the loop does not run infinitelly
         if it_counter > 100:
-            print("Max number of iterations reached. Stopping.")
+            logger.notice("Max number of iterations reached. Stopping.")
             break
         it_counter += 1
 
