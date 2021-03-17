@@ -10,7 +10,7 @@ import sys
 from mdshark import config
 from mdshark.common import run, logger
 
-class class_molecule_features:
+class MoleculeFeatures:
     """
 Class for loading structure in gromacs format *.gro and extracting all unique dihedral angles or puckering coordinates.
 Moreover it will write the initial plumed.dat file.
@@ -882,7 +882,7 @@ Moreover it will write the initial plumed.dat file.
             pass
      
         grofile=glob.glob('needed_files/md_inp_files/*.gro')[0]
-        run(f"printf \"del 1-30 \n r SOL \n name 1 SOLUTION \n 0 & ! 1 \n name 2 MOLECULE \n q \n\"|{config.path['gmx']} make_ndx -f {grofile} -o needed_files/md_inp_files/index.ndx")
+        run(f"printf \"del 1-30 \n r SOL \n name 1 SOLUTION \n 0 & ! 1 \n name 2 MOLECULE \n q \n\"|{config.path['gmx make_ndx']} -f {grofile} -o needed_files/md_inp_files/index.ndx")
      
      
      

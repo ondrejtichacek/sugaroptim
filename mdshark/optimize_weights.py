@@ -343,6 +343,12 @@ def par_optimization(params,sim_data,exp_data,experimental_data_av,weights_indic
     
     return difference
 
+class store_results():
+    def __init__(self,weights_min,error_min,error_data_array_i,error_min_counter):
+        self.weights = weights_min/np.sum(weights_min)
+        self.error = error_min
+        self.error_data_array_i = error_data_array_i
+        self.error_min_counter = error_min_counter
 
 def optimize_weights(all_data,experimental_data_av,**kwargs):
 
@@ -392,7 +398,7 @@ def optimize_weights(all_data,experimental_data_av,**kwargs):
     # Get relative optimization weights calculation
     try:
         relative_optimization_weights = kwargs['relative_optimization_weights']
-        logger.info("Relative optimization weights are: ",kwargs['relative_optimization_weights'])
+        logger.info(f"Relative optimization weights are: {kwargs['relative_optimization_weights']}")
     except:
         logger.warning("Problem with setting relative optimization weights - uset-input. Setting to defaults.")
         relative_optimization_weights = [1,1,1,1,1]
@@ -459,7 +465,7 @@ def optimize_weights(all_data,experimental_data_av,**kwargs):
         str_print += 'C shifts, '
     if experimental_data_av[4] == 1:
         str_print += 'Jij, '
-    logger.info("Counting errors of: ", str_print[:-2])
+    logger.info(f"Counting errors of: {str_print[:-2]}")
 
     counter=0
     opt_result=optimize.differential_evolution(par_optimization,\
@@ -591,17 +597,9 @@ def optimize_weights(all_data,experimental_data_av,**kwargs):
         
     # convert error array to numpy array
     error_data_array_i = np.array(error_data_array_i)
-
-    class store_results():
-        def __init__(self,weights_min,error_min,error_data_array_i,error_min_counter):
-            self.weights = weights_min/np.sum(weights_min)
-            self.error = error_min
-            self.error_data_array_i = error_data_array_i
-            self.error_min_counter = error_min_counter
  
     stored_results = store_results(overall_weights_min,error_min,error_data_array_i,error_min_counter)
     
-
     return stored_results
 
 
