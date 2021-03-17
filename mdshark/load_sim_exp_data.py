@@ -5,6 +5,7 @@ import os
 import scipy.ndimage
 
 from mdshark import m_molecular_features
+from mdshark.common import logger
 
 class experiment:
     def __init__(self,experimental_data_av):
@@ -351,13 +352,13 @@ class data:
                 if i[0]==i[1]:
                     pass
                 else:
-                    print("Warning, Jij shift does not match in sign (exp x sim)")
-                    print('Jij: {0} {1}, exp: {2} <sim>: {3}'.\
+                    logger.warning("Warning, Jij shift does not match in sign (exp x sim)")
+                    logger.warning('Jij: {0} {1}, exp: {2} <sim>: {3}'.\
                           format(int(self.exp.jij_idx1[idx]),int(self.exp.jij_idx2[idx]),\
                           round(self.exp.jij[idx],1),round(np.average(self.sim.jij,axis=0)[idx],1)))
                     #change
                     self.exp.jij[idx]=-1*self.exp.jij[idx]
-                    print("Changing exp data sign to match simulation data.")
+                    logger.warning("Changing exp data sign to match simulation data.")
 
         # Assign original values - not for optimization:
         self.sim.nf_jij=self.sim.jij.copy()
@@ -383,7 +384,7 @@ class data:
                 # Filter Jij data - 1 - check whether the spread is significant (>than threshold)
                 Jij_sa = filter_Jij_1(self.sim.jij)
                 if np.sum(Jij_sa) != len(Jij_sa):
-                    print('Warning, following Jij values (pairs) have too small spread of sim values - omitting them in the optimization.')
+                    logger.warning('Warning, following Jij values (pairs) have too small spread of sim values - omitting them in the optimization.')
                     print([i for i in zip(self.exp.jij_idx1[~Jij_sa],self.exp.jij_idx2[~Jij_sa])])
  
                 self.sim.jij=self.sim.jij[:,Jij_sa]
@@ -396,12 +397,12 @@ class data:
                 # Filter sch data
                 sch_sa_1 = filter_sch_1(self.sim.sch)
                 if np.sum(sch_sa_1) != len(sch_sa_1):
-                    print('Warning, following H chemical shifts have too small spread of sim values - omitting them in the optimization.')
+                    logger.warning('Warning, following H chemical shifts have too small spread of sim values - omitting them in the optimization.')
                     print([int(i) for i in self.exp.sch_idx[~sch_sa_1]])
  
                 sch_sa_2 = filter_sch_2(self.sim.sch,self.exp.sch)
                 if np.sum(sch_sa_2) != len(sch_sa_2):
-                    print('Warning, following H chemical shifts (atoms) \
+                    logger.warning('Warning, following H chemical shifts (atoms) \
                         average values are too far from experimental data!\
                         Ommiting in optimization for now.')
                     print([int(i) for i in self.exp.sch_idx[~sch_sa_2]])
@@ -416,12 +417,12 @@ class data:
                 # Filter sch data
                 scc_sa_1 = filter_scc_1(self.sim.scc)
                 if np.sum(scc_sa_1) != len(scc_sa_1):
-                    print('Warning, following C chemical shifts have too small spread of sim values - omitting them in the optimization.')
+                    logger.warning('Warning, following C chemical shifts have too small spread of sim values - omitting them in the optimization.')
                     print([int(i) for i in self.exp.scc_idx[~scc_sa_1]])
  
                 scc_sa_2 = filter_scc_2(self.sim.scc,self.exp.scc)
                 if np.sum(scc_sa_2) != len(scc_sa_2):
-                    print('Warning, following C chemical shifts (atoms) \
+                    logger.warning('Warning, following C chemical shifts (atoms) \
                         average values are too far from experimental data!\
                         Ommiting in optimization for now.')
                     print([int(i) for i in self.exp.scc_idx[~scc_sa_2]])
@@ -466,4 +467,4 @@ class data:
 
 
 
-        print("{0} files loaded.".format(self.sim.n_files))
+        logger.verbose(f"{self.sim.n_files} files loaded.")

@@ -4,9 +4,11 @@ import numpy as np
 import glob
 import shutil
 import os
+from tqdm import tqdm
+import submitit
 
 from mdshark import config
-from mdshark.common import run
+from mdshark.common import run, logger
 
 def generate_restrained_MD_plumed_file_targeted_MD(molecule_features,n_iteration,kwargs_dict):
     with open("new_iteration_{0}/MD/plumed_restraint.dat".format(n_iteration),'w') as fw:
@@ -210,10 +212,11 @@ def write_target_distribution(molecule_features,final_distribution,n_iteration):
 
 def run_targeted_md_simulation(cluster_sim_nt,n_iteration):
     # Now copy md files here
-    for file in glob.glob('needed_files/md_inp_files/*'):
+    for file_i in glob.glob('needed_files/md_inp_files/*'):
         dest_dir="new_iteration_{0}/MD/.".format(n_iteration)
-        run('cp -r {0} {1}'.format(file,dest_dir))
+        run('cp -r {0} {1}'.format(file_i,dest_dir))
     # Now run the simulations
+
     c_path=os.getcwd()
     os.chdir('new_iteration_{0}/MD'.format(n_iteration))
 
@@ -232,6 +235,9 @@ def run_targeted_md_simulation(cluster_sim_nt,n_iteration):
     os.chdir(c_path)
 
 def generate_new_structures(molecule_features,n_iteration,number_of_new_structures,final_distribution,**kwargs):
+
+    logger.notice(f"Generating new structures with md simulation, it {n_iteration}")
+
     try:
         shutil.rmtree('new_iteration_{0}'.format(n_iteration))
     except FileNotFoundError:
@@ -241,6 +247,7 @@ def generate_new_structures(molecule_features,n_iteration,number_of_new_structur
     os.makedirs("new_iteration_{0}/MD_trj".format(n_iteration))
 
     # make the simulation until there are no crashes (while statement)
+    pbar = tqdm(total=number_of_new_structures)
     cluster_sim_nt = 0
     ns=int(number_of_new_structures/500*10)
     # Set minimal number of structures to 1*50 = 50
@@ -265,8 +272,10 @@ def generate_new_structures(molecule_features,n_iteration,number_of_new_structur
             run('cp new_iteration_{0}/MD/job{1}.xtc new_iteration_{0}/MD_trj/.'.format(n_iteration,cluster_sim_nt))
             run('cp new_iteration_{0}/MD/job{1}.gro new_iteration_{0}/MD_trj/structure_start_sim_prev.gro'.format(n_iteration,cluster_sim_nt))
             cluster_sim_nt += 1
+            pbar.update(1)
         else:
             pass
+    pbar.close()
 
 #    # get rid of the first structure of all job*.xtc files - due to the restarts, these are the same
 #    c_path=os.getcwd()
@@ -279,7 +288,6 @@ def generate_new_structures(molecule_features,n_iteration,number_of_new_structur
     # cat them together
     c_path=os.getcwd()
     os.chdir('new_iteration_{0}/MD_trj'.format(n_iteration))
-    run(f"{config.path['gmx']} trjcat -f job*.xtc -o job_cat.xtc -cat")
     grofile=glob.glob(c_path+'/needed_files/md_inp_files/*gro')[0]
     run('cp ../MD/job.tpr job.tpr')
     run(f"{config.path['gmx']} trjcat -f job*.xtc -o job_cat.xtc -cat")
