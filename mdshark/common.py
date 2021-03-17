@@ -112,7 +112,7 @@ def run(cmd):
         
         raise(e)
 
-def run_submitit(command, cwd, verbose=False):
+def run_popen(command, cwd, verbose=False):
     """
     run compatible with submitit
     """

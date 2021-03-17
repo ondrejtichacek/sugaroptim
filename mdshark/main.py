@@ -195,7 +195,7 @@ class MDSharkOptimizer:
                 method=self.prepare_qm_input_files_C,
                 **self.oniom_vdw_parameters_kwargs)
         
-        logger.success(f"Structures + qm input files generated"}#. Proceed to iteration {self.n_iteration + 1}.")
+        logger.success(f"Structures + qm input files generated")#. Proceed to iteration {self.n_iteration + 1}.")
         
 
     @staticmethod

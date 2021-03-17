@@ -3,9 +3,10 @@ import subprocess
 import shutil
 import glob
 from tqdm import tqdm
+import submitit
 
 from mdshark import config
-from mdshark.common import run, logger
+from mdshark.common import run, run_submit, run_popen, logger
 
 def run_initial_md_simulation(cluster_sim_nt,n_iteration):
     # Now copy md files here
@@ -27,8 +28,11 @@ def run_initial_md_simulation(cluster_sim_nt,n_iteration):
         run('cp ../MD_trj/structure_start_sim_prev.gro structure_start_sim.gro')
     
     try:
-        run(f"{config.path['gmx']} grompp -f md_prod_it0.mdp -c structure_start_sim.gro -p {topfile} -o job.tpr -n {indexfile} -maxwarn 5")
-        run(f"{config.path['mdrun_plumed']} -s job.tpr -v -deffnm job{cluster_sim_nt}  -nsteps 5000 -nt 1 -plumed  plumed_restraint.dat")
+        cmds = [f"{config.path['gmx']} grompp -f md_prod_it0.mdp -c structure_start_sim.gro -p {topfile} -o job.tpr -n {indexfile} -maxwarn 5",
+                f"{config.path['mdrun_plumed']} -s job.tpr -v -deffnm job{cluster_sim_nt} -nsteps 5000 -nt 1 -plumed plumed_restraint.dat"]
+        for cmd in cmds:
+             run_popen(cmd.split(), cwd=os.getcwd())
+        
     except subprocess.CalledProcessError as e:
         logger.warning("Exception caught - md simulation error. This may be expected. See the log above in case of other issues.")
 
