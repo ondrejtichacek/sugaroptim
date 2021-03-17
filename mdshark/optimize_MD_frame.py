@@ -3,15 +3,17 @@ import subprocess
 import glob
 import shutil
 import multiprocessing
+from joblib import Parallel, delayed
 import mdtraj
 from functools import partial
+from tqdm import tqdm
 import numpy as np
 
 import pathlib
 from pathlib import Path
 
 from mdshark import config
-from mdshark.common import run, logger
+from mdshark.common import run, run_submit_multi, logger
 
 # Function to write plumed restraint file for MD optimization
 def make_opt_plumed_file(frame,molecule_features,kwargs_dict):
@@ -19,8 +21,10 @@ def make_opt_plumed_file(frame,molecule_features,kwargs_dict):
     molecule_features.write_plumed_print_features(frame+'_plumed.dat',frame+'_',1)
 
     # first get values of the frame
-    run(f"printf \"0\n\"|{config.path['gmx']} trjconv -f {frame} -s {frame} -o {frame}_plumed_restraint_values.xtc")
-    run(f"plumed driver --mf_xtc {frame}_plumed_restraint_values.xtc --plumed {frame}_plumed.dat")
+    run_submit_multi([
+        f"printf \"0\n\"|{config.path['gmx']} trjconv -f {frame} -s {frame} -o {frame}_plumed_restraint_values.xtc",
+        f"plumed driver --mf_xtc {frame}_plumed_restraint_values.xtc --plumed {frame}_plumed.dat"], 
+        cwd=os.getcwd(), env_setup='plumed')
 
     restrain_features_values = np.loadtxt(frame+'_plumed_output_features.dat')
     restrain_features_values = restrain_features_values[1:]
@@ -32,16 +36,20 @@ def make_opt_plumed_file(frame,molecule_features,kwargs_dict):
 def optimize_frame(i,molecule_features,kwargs_dict):
     # Make plumed file
     make_opt_plumed_file(i,molecule_features,kwargs_dict)
-    topol=glob.glob('*.top')[0]
+    topol = glob.glob('*.top')[0]
 
-    # min
-    run(f"{config.path['gmx']} grompp -f md_min.mdp -c {i} -p {topol} -o {i}_min.tpr -n index.ndx -po {i}_mdout1.mdp -maxwarn 5&> {i}_grompp_min.err")
-    run(f"{config.path['mdrun_plumed']} -s {i}_min.tpr -v -deffnm {i}_min -nt 1 -plumed {i}_plumed_restraint.dat &> {i}_min.err")
-    # MD opt
-    run(f"{config.path['gmx']} grompp -f md_opt.mdp -c {i}_min.gro -p {topol} -o {i}_opt.tpr -n index.ndx -r {i}_min.gro -po {i}_mdout2.mdp -maxwarn 5 &> {i}_grompp_opt.err")
-    run(f"{config.path['mdrun_plumed']} -s {i}_opt.tpr -v -deffnm {i}_opt -nsteps 20000 -nt 1 -plumed {i}_plumed_restraint.dat &> {i}_opt.err")
-    # to xtc
-    run(f"printf \"0\n\"|{config.path['gmx']} trjconv -f {i}_opt.gro -s {i}_opt.tpr -o {i}_opt.xtc &> {i}_trjconv.err")
+    run_submit_multi([
+        f"export OMP_NUM_THREADS=1",
+        # min
+        f"{config.path['gmx']} grompp -f md_min.mdp -c {i} -p {topol} -o {i}_min.tpr -n index.ndx -po {i}_mdout1.mdp -maxwarn 5 &> {i}_grompp_min.err",
+        f"{config.path['mdrun_plumed']} -s {i}_min.tpr -v -deffnm {i}_min -nt 1 -ntmpi 1 -ntomp 1 -plumed {i}_plumed_restraint.dat &> {i}_min.err",
+        # MD opt
+        f"{config.path['gmx']} grompp -f md_opt.mdp -c {i}_min.gro -p {topol} -o {i}_opt.tpr -n index.ndx -r {i}_min.gro -po {i}_mdout2.mdp -maxwarn 5 &> {i}_grompp_opt.err",
+        f"{config.path['mdrun_plumed']} -s {i}_opt.tpr -v -deffnm {i}_opt -nt 1 -ntmpi 1 -ntomp 1 -nsteps 20000 -plumed {i}_plumed_restraint.dat &> {i}_opt.err",
+        # to xtc
+        f"printf \"0\n\"|{config.path['gmx']} trjconv -f {i}_opt.gro -s {i}_opt.tpr -o {i}_opt.xtc &> {i}_trjconv.err"],
+        cwd=os.getcwd(), env_setup='plumed')
+
 # do the MD optimization for all
 def optimize_individual_frames(n_iteration,number_of_new_structures,molecule_features_class,**kwargs):
 
@@ -86,9 +94,19 @@ def optimize_individual_frames(n_iteration,number_of_new_structures,molecule_fea
         NUM_WORKERS = 1
         print("Problem with setting NUM_WORKERS_C, falling back to single worker.")
 
-    with multiprocessing.Pool(processes=NUM_WORKERS) as pool:
-        pool.map(partial(optimize_frame,molecule_features = molecule_features_class,kwargs_dict = kwargs), all_frames)
-        pass
+    # with multiprocessing.Pool(processes=NUM_WORKERS) as pool:
+    #     pool.map(partial(optimize_frame,molecule_features = molecule_features_class,kwargs_dict = kwargs), all_frames)
+    #     pass
+    
+    Parallel(n_jobs=10)(delayed(optimize_frame)(
+            frame ,molecule_features=molecule_features_class,
+            kwargs_dict=kwargs) for frame in all_frames)
+
+    # for frame in tqdm(all_frames):
+    #     optimize_frame(
+    #             frame,
+    #             molecule_features=molecule_features_class,
+    #             kwargs_dict=kwargs)
 
     # cat the frames together
     run(f"{config.path['gmx']} trjcat -f frame*opt.xtc -o frames_opt_cat.xtc -cat")

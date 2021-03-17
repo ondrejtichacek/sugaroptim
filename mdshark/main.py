@@ -279,7 +279,7 @@ class MDSharkOptimizer:
                         relative_optimization_weights=self.relative_optimization_weights_C)
 
                 weights = stored_results.weights
-                error = stored_results.error
+                # error = stored_results.error
                 error_data_array_i = stored_results.error_data_array_i
 
                 # when converged - we can plot it
