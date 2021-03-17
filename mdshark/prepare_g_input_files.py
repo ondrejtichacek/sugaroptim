@@ -21,7 +21,8 @@ class frame_features:
 Class for loading structure in gromacs format *.gro and extracting all unique dihedral angles or puckering coordinates.
 Moreover it will write the initial plumed.dat file.
     """
-    def __init__(self,frame,molecule_features):
+
+    def __init__(self, frame, molecule_features):
 
         try:
             water_xyz = np.squeeze(frame.xyz)[molecule_features.water_idx]
@@ -56,14 +57,15 @@ Moreover it will write the initial plumed.dat file.
 
         water_dist_cutoff = 0.3
         # find water molecules
-        water_around_idx = [] #Array where to save new waters
-        for count, (water_atom_idx, water_atom_xyz) in enumerate(zip(molecule_features.water_idx, water_xyz),1):
-            if count % 3 == 1 : #Working over three point water molecules
-                i_water = [] # Array containing the water checked in the loop
+        water_around_idx = []  # Array where to save new waters
+        for count, (water_atom_idx, water_atom_xyz) in enumerate(zip(molecule_features.water_idx, water_xyz), 1):
+            if count % 3 == 1:  # Working over three point water molecules
+                i_water = []  # Array containing the water checked in the loop
                 bSaveWater = False
             i_water.append(water_atom_idx)
 
-            dist = np.linalg.norm(mol_xyz - water_atom_xyz, axis=1, keepdims=True)
+            dist = np.linalg.norm(
+                mol_xyz - water_atom_xyz, axis=1, keepdims=True)
             if np.any(dist < water_dist_cutoff):
                 bSaveWater = True
             if count % 3 == 0 and bSaveWater == True:
@@ -73,48 +75,47 @@ Moreover it will write the initial plumed.dat file.
 
         # Make connectivity list
         # Count explicit atoms
-        explicit_atoms=molecule_features.natoms+len(water_around_idx)
+        explicit_atoms = molecule_features.natoms+len(water_around_idx)
         # Make connectivity lists
-        connectivity_list_xyz=np.zeros((explicit_atoms,3))
-        connectivity_list_name=np.zeros(explicit_atoms,dtype='str')
-        average_coords=list(sum(frame.xyz[0][molecule_features.mol_idx])/len(frame.xyz[0][molecule_features.mol_idx]))
-        self.average_coords=average_coords
-        atom_counter=0
+        connectivity_list_xyz = np.zeros((explicit_atoms, 3))
+        connectivity_list_name = np.zeros(explicit_atoms, dtype='str')
+        average_coords = list(sum(
+            frame.xyz[0][molecule_features.mol_idx])/len(frame.xyz[0][molecule_features.mol_idx]))
+        self.average_coords = average_coords
+        atom_counter = 0
         for i in list(molecule_features.mol_idx):
-            atom_name=frame.topology.atom(int(i)).element.symbol
-            atom_xyz=10*(frame.xyz[0][int(i)]-average_coords)
-            connectivity_list_xyz[atom_counter]=atom_xyz
-            connectivity_list_name[atom_counter]=atom_name
-            atom_counter+=1
+            atom_name = frame.topology.atom(int(i)).element.symbol
+            atom_xyz = 10*(frame.xyz[0][int(i)]-average_coords)
+            connectivity_list_xyz[atom_counter] = atom_xyz
+            connectivity_list_name[atom_counter] = atom_name
+            atom_counter += 1
         for i in list(water_around_idx):
-            atom_name=frame.topology.atom(int(i)).element.symbol
-            atom_xyz=10*(frame.xyz[0][int(i)]-average_coords)
-            connectivity_list_xyz[atom_counter]=atom_xyz
-            connectivity_list_name[atom_counter]=atom_name
-            atom_counter+=1
+            atom_name = frame.topology.atom(int(i)).element.symbol
+            atom_xyz = 10*(frame.xyz[0][int(i)]-average_coords)
+            connectivity_list_xyz[atom_counter] = atom_xyz
+            connectivity_list_name[atom_counter] = atom_name
+            atom_counter += 1
         # Make connectivity string
-        connectivity_string=''
-        xyz_sel=connectivity_list_xyz[:]
-        atoms_sel=connectivity_list_name[:]
-        for idxi,i in enumerate(xyz_sel):
+        connectivity_string = ''
+        xyz_sel = connectivity_list_xyz[:]
+        atoms_sel = connectivity_list_name[:]
+        for idxi, i in enumerate(xyz_sel):
             dist = np.linalg.norm(xyz_sel - i, axis=1, keepdims=True)
-            bonded=np.where((dist<1.65) &  (dist>0))[0]
-            var="{0}".format(str(idxi+1),end='rr')
+            bonded = np.where((dist < 1.65) & (dist > 0))[0]
+            var = "{0}".format(str(idxi+1), end='rr')
             for j in bonded:
-                if j>idxi:
+                if j > idxi:
 
                     if atoms_sel[idxi] == 'H' or atoms_sel[j] == 'H':
-                        dd=np.linalg.norm(i - xyz_sel[j])
-                        if dd <1.3:
-                            var+=' {0} 1.0'.format(str(j+1),end='xx')
+                        dd = np.linalg.norm(i - xyz_sel[j])
+                        if dd < 1.3:
+                            var += ' {0} 1.0'.format(str(j+1), end='xx')
                     else:
-                        var+=' {0} 1.0'.format(str(j+1),end='yy')
-            var+='\n'
-            connectivity_string+=var
+                        var += ' {0} 1.0'.format(str(j+1), end='yy')
+            var += '\n'
+            connectivity_string += var
         self.connectivity_string = connectivity_string
         # Connectivity string done
-
-
 
         ###################
         # Strategy is to find all water molecules that are close to poalr atoms - then substract those
@@ -187,10 +188,7 @@ Moreover it will write the initial plumed.dat file.
  #
  #
 
-
     ###################
-
-
 
     # This class has following variables:
 
@@ -211,13 +209,13 @@ Moreover it will write the initial plumed.dat file.
 
 # Set oniom vdw parameters
 def set_oniom_vdw_parameters(**kwargs):
-    
+
     oniom_vdw_parameters_C = kwargs['oniom_vdw_parameters_C']
-    
+
     # glycam DNA RNA parameters
     if oniom_vdw_parameters_C == 'RNA_DNA_1':
         logger.verbose("Setting ONIOM vdw parameters to: RND/DNA glycam")
-        oniom_vdw_parameters="""VDW OW 1.7682 0.1521
+        oniom_vdw_parameters = """VDW OW 1.7682 0.1521
 VDW HW 0.0000 0.0000
 VDW cc 1.9080 0.0860
 VDW na 1.8240 0.1700
@@ -244,7 +242,7 @@ VDW h4 1.4090 0.0150"""
     # Glycam parameters
     elif oniom_vdw_parameters_C == 'glycam_saccharides':
         logger.verbose("Setting ONIOM vdw parameters to: glycam saccharides")
-        oniom_vdw_parameters="""VDW OW 1.7682 0.1521
+        oniom_vdw_parameters = """VDW OW 1.7682 0.1521
 VDW HW 0.0000 0.0000
 VDW C  1.9080  0.0860
 VDW Cg 1.9080  0.1094
@@ -262,7 +260,7 @@ VDW c3 1.9080  0.0860"""
     # Protein charmm parameters
     elif oniom_vdw_parameters_C == 'proteins_1':
         logger.verbose("Setting ONIOM vdw parameters to: proteins_1")
-        oniom_vdw_parameters="""VDW OW 1.7682 0.1521
+        oniom_vdw_parameters = """VDW OW 1.7682 0.1521
 VDW HW 0.0000 0.0000
 VDW H 0.2245 0.0460
 VDW HA 1.3200 0.0220
@@ -311,7 +309,7 @@ VDW OC 1.7000 0.1200"""
     # protien GAFF generated form antechamber
     elif oniom_vdw_parameters_C == 'proteins_2':
         logger.verbose("Setting ONIOM vdw parameters to: proteins_2")
-        oniom_vdw_parameters="""VDW OW 1.7682 0.1521
+        oniom_vdw_parameters = """VDW OW 1.7682 0.1521
 VDW HW 0.0000 0.0000
 VDW ca 1.9080 0.0860
 VDW c3 1.9080 0.1094
@@ -332,7 +330,7 @@ VDW h1 1.3870 0.0157"""
 
             read_ff_nb = False
             unique_atoms = []
-            with open(kwargs['mol_file_path'],'r') as fr:
+            with open(kwargs['mol_file_path'], 'r') as fr:
                 for line in fr:
                     if line == '[ atoms ]\n':
                         read_ff_nb = True
@@ -342,65 +340,76 @@ VDW h1 1.3870 0.0157"""
                         try:
                             int(line.split()[0])
                             unique_atoms.append(line.split()[1])
-                        except (ValueError,IndexError):
+                        except (ValueError, IndexError):
                             pass
             unique_atoms = np.unique(unique_atoms)
 
             par_arr = []
             for i in unique_atoms:
-                with open(kwargs['ffnonbonded_file_path'],'r') as fr:
+                with open(kwargs['ffnonbonded_file_path'], 'r') as fr:
                     for line in fr:
                         if (len(line.split()) == 7) and (i == line.split()[0]):
-                            par_arr.append([i,line.split()[-2],line.split()[-1]])
+                            par_arr.append(
+                                [i, line.split()[-2], line.split()[-1]])
 
             oniom_vdw_parameters = 'VDW OW 1.76820 0.15210\nVDW HW 0.0000 0.0000\n'
             for i in par_arr:
                 sig = float(i[1])*10/2*(2**(1/6))
                 eps = float(i[2])/4.184
-                oniom_vdw_parameters += "{0} {1} {2:.5f} {3:.5f}\n".format('VDW',i[0],sig,eps)       
+                oniom_vdw_parameters += "{0} {1} {2:.5f} {3:.5f}\n".format(
+                    'VDW', i[0], sig, eps)
         except Exception as err:
             print(err)
-            logger.warning("Error when setting ONIOM vdw parameters to charmm-cgenff ")
+            logger.warning(
+                "Error when setting ONIOM vdw parameters to charmm-cgenff ")
             logger.warning("Check mol.itp/ffnonbonded file paths")
 
         # delete the last new line
         oniom_vdw_parameters = oniom_vdw_parameters[:-2]
-        
+
     else:
         logger.warning("Error: did not found VDW parameters")
-    return  oniom_vdw_parameters
+    return oniom_vdw_parameters
 
 # python scripts to handle geometries and prepare final input files from sample
-def make_python_scripts(n_iteration,filename_counter,molecule_features,write_folder):
 
-    target_dir = Path("{2}/f{0}_{1:05d}".format(n_iteration,filename_counter,write_folder))
+
+def make_python_scripts(n_iteration, filename_counter, molecule_features, write_folder):
+
+    target_dir = Path("{2}/f{0}_{1:05d}".format(n_iteration,
+                      filename_counter, write_folder))
 
     source_dir = Path("../mdshark/")
 
-    for f in [ 
-            "g_inp_file_preparation_oniom.py", # Python file which prepare oniom calculations (Raman/ROA)
-            "g_inp_file_preparation_pcm.py", # Python file which prepare pcm calculations 
-            "g_structure_gro_extraction.py",]:
+    for f in [
+            # Python file which prepare oniom calculations (Raman/ROA)
+            "g_inp_file_preparation_oniom.py",
+            "g_inp_file_preparation_pcm.py",  # Python file which prepare pcm calculations
+            "g_structure_gro_extraction.py", ]:
 
         shutil.copy(source_dir/f, target_dir/f)
-    
+
     with open(target_dir/'molecule_features.pickle', 'wb') as f:
         pickle.dump({
             'charge': molecule_features.charge,
-            'multiplicity': molecule_features.multiplicity,}, f)
+            'multiplicity': molecule_features.multiplicity, }, f)
 
 ######################################
 ### Option 1 - low quality - START ###
 ######################################
 
 ## optimization ##
-def make_gaussian_inputs_o1_opt(filename_counter,frame, frame_features_i, oniom_vdw_parameters,itp_file,n_iteration,qm_m_nproc,write_folder):
-    # First save geometry
-    groname = "{2}/f{0}_{1:05d}/structure_initial.gro".format(n_iteration,filename_counter,write_folder)
-    memory,nproc=qm_m_nproc
-    frame.atom_slice(np.concatenate([frame_features_i.mol_idx, frame_features_i.water_around_idx])).save_gro(groname)
 
-    g_header0="""%chk=g_opt.chk
+
+def make_gaussian_inputs_o1_opt(filename_counter, frame, frame_features_i, oniom_vdw_parameters, itp_file, n_iteration, qm_m_nproc, write_folder):
+    # First save geometry
+    groname = "{2}/f{0}_{1:05d}/structure_initial.gro".format(
+        n_iteration, filename_counter, write_folder)
+    memory, nproc = qm_m_nproc
+    frame.atom_slice(np.concatenate(
+        [frame_features_i.mol_idx, frame_features_i.water_around_idx])).save_gro(groname)
+
+    g_header0 = """%chk=g_opt.chk
 %mem={0}GB
 %nproc={1}
 #oniom(pm7:amber=softfirst)=embedcharge nosymm  opt=(nomicro,maxcycles=11) geom=connectivity Scrf=(cpcm,solvent=water)
@@ -408,56 +417,61 @@ def make_gaussian_inputs_o1_opt(filename_counter,frame, frame_features_i, oniom_
 optimization - 0 step
 
 {2} {3} {2} {3} {2} {3}
-""".format(memory,nproc,frame_features_i.molecule_features.charge,frame_features_i.molecule_features.multiplicity)
-    g_header1="""%chk=g_opt.chk
+""".format(memory, nproc, frame_features_i.molecule_features.charge, frame_features_i.molecule_features.multiplicity)
+    g_header1 = """%chk=g_opt.chk
 %mem={0}GB
 %nproc={1}
 #oniom(B3LYP/6-31G*:amber=softfirst)=embedcharge nosymm  opt=(nomicro,maxcycles=6) geom=AllCheck Scrf=(cpcm,solvent=water) guess=check
 
 
-""".format(memory,nproc,frame_features_i.molecule_features.charge,frame_features_i.molecule_features.multiplicity)
-    g_header2="""%chk=g_opt.chk
+""".format(memory, nproc, frame_features_i.molecule_features.charge, frame_features_i.molecule_features.multiplicity)
+    g_header2 = """%chk=g_opt.chk
 %mem={0}GB
 %nproc={1}
 #oniom(B3LYP/6-311++G**:amber=softfirst)=embedcharge nosymm  opt=(nomicro,maxcycles=6) geom=AllCheck Scrf=(cpcm,solvent=water) guess=check
 
 
-""".format(memory,nproc,frame_features_i.molecule_features.charge,frame_features_i.molecule_features.multiplicity)
-    g_opt0="{2}/f{0}_{1:05d}/g_opt0.inp".format(n_iteration,filename_counter,write_folder)
-    g_opt1="{2}/f{0}_{1:05d}/g_opt1.inp".format(n_iteration,filename_counter,write_folder)
-    g_opt2="{2}/f{0}_{1:05d}/g_opt2.inp".format(n_iteration,filename_counter,write_folder)
-    with open(g_opt0,'w') as fw0, open(g_opt1,'w') as fw1, open(g_opt2,'w') as fw2:
+""".format(memory, nproc, frame_features_i.molecule_features.charge, frame_features_i.molecule_features.multiplicity)
+    g_opt0 = "{2}/f{0}_{1:05d}/g_opt0.inp".format(
+        n_iteration, filename_counter, write_folder)
+    g_opt1 = "{2}/f{0}_{1:05d}/g_opt1.inp".format(
+        n_iteration, filename_counter, write_folder)
+    g_opt2 = "{2}/f{0}_{1:05d}/g_opt2.inp".format(
+        n_iteration, filename_counter, write_folder)
+    with open(g_opt0, 'w') as fw0, open(g_opt1, 'w') as fw1, open(g_opt2, 'w') as fw2:
         fw0.write(g_header0)
         fw1.write(g_header1)
         fw2.write(g_header2)
         # Molecule coordinates
         for i in list(frame_features_i.mol_idx):
-            res=str(frame.topology.atom(i).residue)[0:3]
-            atom=str(frame.topology.atom(i).name)
-            index=str((frame.topology.atom(i).index)+1)
-            atom_name=frame.topology.atom(int(i)).element.symbol
-            atom_xyz=10*(frame.xyz[0][int(i)]-frame_features_i.average_coords)
+            res = str(frame.topology.atom(i).residue)[0:3]
+            atom = str(frame.topology.atom(i).name)
+            index = str((frame.topology.atom(i).index)+1)
+            atom_name = frame.topology.atom(int(i)).element.symbol
+            atom_xyz = 10*(frame.xyz[0][int(i)] -
+                           frame_features_i.average_coords)
 
-            with open(itp_file,"r") as itpf:
-                lines=itpf.readlines()
+            with open(itp_file, "r") as itpf:
+                lines = itpf.readlines()
                 for line in lines:
-                    if re.search(" "+res+" ",line) and re.search(" "+atom+" ",line) and re.search(" "+index+" ",line):
-                        atom_type=line.split()[1]
-                        atom_charge=line.split()[6]
-            fw0.write(" {0}-{1}-{2}  0  {3:0.3f} {4:0.3f} {5:0.3f} H\n".format(atom_name,atom_type,atom_charge,\
-                                                    float(atom_xyz[0]),float(atom_xyz[1]),float(atom_xyz[2])))
+                    if re.search(" "+res+" ", line) and re.search(" "+atom+" ", line) and re.search(" "+index+" ", line):
+                        atom_type = line.split()[1]
+                        atom_charge = line.split()[6]
+            fw0.write(" {0}-{1}-{2}  0  {3:0.3f} {4:0.3f} {5:0.3f} H\n".format(atom_name, atom_type, atom_charge,
+                                                                               float(atom_xyz[0]), float(atom_xyz[1]), float(atom_xyz[2])))
         # Water coordinates
         for i in list(frame_features_i.water_around_idx):
-            atom_name=frame.topology.atom(int(i)).element.symbol
-            atom_xyz=10*(frame.xyz[0][int(i)]-frame_features_i.average_coords)
+            atom_name = frame.topology.atom(int(i)).element.symbol
+            atom_xyz = 10*(frame.xyz[0][int(i)] -
+                           frame_features_i.average_coords)
             if atom_name == 'O':
-                atom_type='OW'
-                atom_charge='-0.834'
+                atom_type = 'OW'
+                atom_charge = '-0.834'
             else:
-                atom_type='HW'
-                atom_charge='0.417'
-            fw0.write(" {0}-{1}-{2}  0  {3:0.3f} {4:0.3f} {5:0.3f} L\n".format(atom_name,atom_type,atom_charge,\
-                                                    float(atom_xyz[0]),float(atom_xyz[1]),float(atom_xyz[2])))
+                atom_type = 'HW'
+                atom_charge = '0.417'
+            fw0.write(" {0}-{1}-{2}  0  {3:0.3f} {4:0.3f} {5:0.3f} L\n".format(atom_name, atom_type, atom_charge,
+                                                                               float(atom_xyz[0]), float(atom_xyz[1]), float(atom_xyz[2])))
         # Write connectivity
         fw0.write('\n')
         fw0.write(frame_features_i.connectivity_string)
@@ -468,13 +482,15 @@ optimization - 0 step
 
 ## Raman/ROA ##
 # 6-31G* basis set for frequencies, rDPS basis set for intensities
-def make_gaussian_inputs_o1_raman_roa(filename_counter,frame, frame_features_i, oniom_vdw_parameters,itp_file,n_iteration,qm_m_nproc,write_folder):
+
+
+def make_gaussian_inputs_o1_raman_roa(filename_counter, frame, frame_features_i, oniom_vdw_parameters, itp_file, n_iteration, qm_m_nproc, write_folder):
     # Raman g input files
     # Initial guess for the scaling function
     scaling_function = '0.925 1.0 100 1525'
 
-    memory,nproc=qm_m_nproc
-    gh0_ram="""%chk=raman_calc_chk.chk
+    memory, nproc = qm_m_nproc
+    gh0_ram = """%chk=raman_calc_chk.chk
 %mem={0}GB
 %nproc={1}
 #oniom(B3LYP/6-31G*:amber=softfirst)=embedcharge freq nosymm  geom=(connectivity,nomicro) Scrf=(cpcm,solvent=water)
@@ -482,8 +498,8 @@ def make_gaussian_inputs_o1_raman_roa(filename_counter,frame, frame_features_i, 
 raman/roa calculation
 
 {2} {3} {2} {3} {2} {3}
-""".format(memory,nproc,frame_features_i.molecule_features.charge,frame_features_i.molecule_features.multiplicity)
-    gh1_ram="""%chk=raman_calc_chk.chk
+""".format(memory, nproc, frame_features_i.molecule_features.charge, frame_features_i.molecule_features.multiplicity)
+    gh1_ram = """%chk=raman_calc_chk.chk
 %mem={0}GB
 %nproc={1}
 #oniom(B3LYP/gen:amber=softfirst)=embedcharge polar=roa nosymm geom=(connectivity,nomicro)  Scrf=(cpcm,solvent=water)
@@ -491,12 +507,12 @@ raman/roa calculation
 raman/roa calculation
 
 {2} {3} {2} {3} {2} {3}
-""".format(memory,nproc,frame_features_i.molecule_features.charge,frame_features_i.molecule_features.multiplicity)
+""".format(memory, nproc, frame_features_i.molecule_features.charge, frame_features_i.molecule_features.multiplicity)
     # Raman basis set  - rDPS basis set (3-21G + p(0.2) orbital on hydrogen)
     # for Raman intensities
     # https://www.basissetexchange.org/
 
-    raman_bs_H="""S   2   1.00
+    raman_bs_H = """S   2   1.00
 0.5447178000D+01       0.1562849787D+00
 0.8245472400D+00       0.9046908767D+00
 S   1   1.00
@@ -507,7 +523,7 @@ P   1   1.00
 0.2000000000E+00       1.0000000
 ****
 """
-    raman_bs_C="""S   3   1.00
+    raman_bs_C = """S   3   1.00
 0.1722560000D+03       0.6176690738D-01
 0.2591090000D+02       0.3587940429D+00
 0.5533350000D+01       0.7007130837D+00
@@ -520,7 +536,7 @@ SP   1   1.00
 0.4380000000D-01       0.1000000000D+01       0.1000000000D+01
 ****
 """
-    raman_bs_N="""S   3   1.00
+    raman_bs_N = """S   3   1.00
 0.2427660000D+03       0.5986570051D-01
 0.3648510000D+02       0.3529550030D+00
 0.7814490000D+01       0.7065130060D+00
@@ -533,7 +549,7 @@ SP   1   1.00
 0.6390000000D-01       0.1000000000D+01       0.1000000000D+01
 ****
 """
-    raman_bs_O="""S   3   1.00
+    raman_bs_O = """S   3   1.00
 0.3220370000D+03       0.5923939339D-01
 0.4843080000D+02       0.3514999608D+00
 0.1042060000D+02       0.7076579210D+00
@@ -547,69 +563,74 @@ SP   1   1.00
 ****
 """
     # Prepare Raman basis set for final intesity calculations
-    raman_bs=''
+    raman_bs = ''
     for atom_j in set(frame_features_i.molecule_features.atom_list):
-        atom_i_list=[i+1 for i,val in enumerate(frame_features_i.molecule_features.atom_list) if val==atom_j]
+        atom_i_list = [
+            i+1 for i, val in enumerate(frame_features_i.molecule_features.atom_list) if val == atom_j]
         if atom_j == 'H':
             for k in atom_i_list:
-                raman_bs+='{0} '.format(k)
-            raman_bs+='0\n'
-            raman_bs+=raman_bs_H
+                raman_bs += '{0} '.format(k)
+            raman_bs += '0\n'
+            raman_bs += raman_bs_H
         elif atom_j == 'C':
             for k in atom_i_list:
-                raman_bs+='{0} '.format(k)
-            raman_bs+='0\n'
-            raman_bs+=raman_bs_C
+                raman_bs += '{0} '.format(k)
+            raman_bs += '0\n'
+            raman_bs += raman_bs_C
         elif atom_j == 'N':
             for k in atom_i_list:
-                raman_bs+='{0} '.format(k)
-            raman_bs+='0\n'
-            raman_bs+=raman_bs_N
+                raman_bs += '{0} '.format(k)
+            raman_bs += '0\n'
+            raman_bs += raman_bs_N
         elif atom_j == 'O':
             for k in atom_i_list:
-                raman_bs+='{0} '.format(k)
-            raman_bs+='0\n'
-            raman_bs+=raman_bs_O
+                raman_bs += '{0} '.format(k)
+            raman_bs += '0\n'
+            raman_bs += raman_bs_O
         else:
-            raman_bs+='{0} 0\n6-311++G**\n****\n'.format(atom_j)
+            raman_bs += '{0} 0\n6-311++G**\n****\n'.format(atom_j)
 
-    file_out0="{2}/f{0}_{1:05d}/g_raman_sample0.inp".format(n_iteration,filename_counter,write_folder)
-    file_out1="{2}/f{0}_{1:05d}/g_raman_sample1.inp".format(n_iteration,filename_counter,write_folder)
-    with open(file_out0,'w') as fw0, open(file_out1,'w') as fw1:
+    file_out0 = "{2}/f{0}_{1:05d}/g_raman_sample0.inp".format(
+        n_iteration, filename_counter, write_folder)
+    file_out1 = "{2}/f{0}_{1:05d}/g_raman_sample1.inp".format(
+        n_iteration, filename_counter, write_folder)
+    with open(file_out0, 'w') as fw0, open(file_out1, 'w') as fw1:
         fw0.write(gh0_ram)
         fw1.write(gh1_ram)
         # Molecule coordinates
         for i in list(frame_features_i.mol_idx):
-            res=str(frame.topology.atom(i).residue)[0:3]
-            atom=str(frame.topology.atom(i).name)
-            index=str((frame.topology.atom(i).index)+1)
-            atom_name=frame.topology.atom(int(i)).element.symbol
-            atom_xyz=10*(frame.xyz[0][int(i)]-frame_features_i.average_coords)
+            res = str(frame.topology.atom(i).residue)[0:3]
+            atom = str(frame.topology.atom(i).name)
+            index = str((frame.topology.atom(i).index)+1)
+            atom_name = frame.topology.atom(int(i)).element.symbol
+            atom_xyz = 10*(frame.xyz[0][int(i)] -
+                           frame_features_i.average_coords)
 
-            with open(itp_file,"r") as itpf:
-                lines=itpf.readlines()
+            with open(itp_file, "r") as itpf:
+                lines = itpf.readlines()
                 for line in lines:
-                    if re.search(" "+res+" ",line) and re.search(" "+atom+" ",line) and re.search(" "+index+" ",line):
-                        atom_type=line.split()[1]
-                        atom_charge=line.split()[6]
-            fw0.write(" {0}-{1}-{2}  0  {3:0.3f} {4:0.3f} {5:0.3f} H\n".format(atom_name,atom_type,atom_charge,\
-                                                    float(atom_xyz[0]),float(atom_xyz[1]),float(atom_xyz[2])))
-            fw1.write(" {0}-{1}-{2}  0  {3:0.3f} {4:0.3f} {5:0.3f} H\n".format(atom_name,atom_type,atom_charge,\
-                                                    float(atom_xyz[0]),float(atom_xyz[1]),float(atom_xyz[2])))
+                    if re.search(" "+res+" ", line) and re.search(" "+atom+" ", line) and re.search(" "+index+" ", line):
+                        atom_type = line.split()[1]
+                        atom_charge = line.split()[6]
+            fw0.write(" {0}-{1}-{2}  0  {3:0.3f} {4:0.3f} {5:0.3f} H\n".format(atom_name, atom_type, atom_charge,
+                                                                               float(atom_xyz[0]), float(atom_xyz[1]), float(atom_xyz[2])))
+            fw1.write(" {0}-{1}-{2}  0  {3:0.3f} {4:0.3f} {5:0.3f} H\n".format(atom_name, atom_type, atom_charge,
+                                                                               float(atom_xyz[0]), float(atom_xyz[1]), float(atom_xyz[2])))
         # Water coordinates
         for i in list(frame_features_i.water_around_idx):
-            atom_name=frame.topology.atom(int(i)).element.symbol
-            atom_xyz=10*(frame.xyz[0][int(i)]-frame_features_i.average_coords)
+            atom_name = frame.topology.atom(int(i)).element.symbol
+            atom_xyz = 10*(frame.xyz[0][int(i)] -
+                           frame_features_i.average_coords)
             if atom_name == 'O':
-                atom_type='OW'
-                atom_charge='-0.834'
+                atom_type = 'OW'
+                atom_charge = '-0.834'
             else:
-                atom_type='HW'
-                atom_charge='0.417'
-            fw0.write(" {0}-{1}-{2}  0  {3:0.3f} {4:0.3f} {5:0.3f} L\n".format(atom_name,atom_type,atom_charge,\
-                                                    float(atom_xyz[0]),float(atom_xyz[1]),float(atom_xyz[2])))
-            fw1.write(" {0}-{1}-{2}  0  {3:0.3f} {4:0.3f} {5:0.3f} L\n".format(atom_name,atom_type,atom_charge,\
-                                                    float(atom_xyz[0]),float(atom_xyz[1]),float(atom_xyz[2])))
+                atom_type = 'HW'
+                atom_charge = '0.417'
+            fw0.write(" {0}-{1}-{2}  0  {3:0.3f} {4:0.3f} {5:0.3f} L\n".format(atom_name, atom_type, atom_charge,
+                                                                               float(atom_xyz[0]), float(atom_xyz[1]), float(atom_xyz[2])))
+            fw1.write(" {0}-{1}-{2}  0  {3:0.3f} {4:0.3f} {5:0.3f} L\n".format(atom_name, atom_type, atom_charge,
+                                                                               float(atom_xyz[0]), float(atom_xyz[1]), float(atom_xyz[2])))
         # Write connectivity
         fw0.write('\n')
         fw1.write('\n')
@@ -626,14 +647,17 @@ SP   1   1.00
         fw1.write(raman_bs)
         fw1.write('\n\n')
 
-    sfw="{2}/f{0}_{1:05d}/raman_scaling_function.dat".format(n_iteration,filename_counter,write_folder)
-    with open(sfw,'w') as fw:
+    sfw = "{2}/f{0}_{1:05d}/raman_scaling_function.dat".format(
+        n_iteration, filename_counter, write_folder)
+    with open(sfw, 'w') as fw:
         fw.write(scaling_function)
 ## Raman/ROA ##
 
 ## NMR chemical shifts ##
 # calculate chemical shieldings using PCM solvations scheme with pcS-2 basis set
-def make_gaussian_inputs_o1_nmr_shifts(filename_counter,frame, frame_features_i, oniom_vdw_parameters,itp_file,n_iteration,qm_m_nproc,write_folder,**kwargs):
+
+
+def make_gaussian_inputs_o1_nmr_shifts(filename_counter, frame, frame_features_i, oniom_vdw_parameters, itp_file, n_iteration, qm_m_nproc, write_folder, **kwargs):
 
     # set solvent
     try:
@@ -645,26 +669,28 @@ def make_gaussian_inputs_o1_nmr_shifts(filename_counter,frame, frame_features_i,
     H_reg_par = '31.3296715831336 -1.0084162991609904'
     C_reg_par = '189.7154878886343 -1.1530205889444989'
 
-    sfw="{2}/f{0}_{1:05d}/nmr_h_shifts_regression_par.dat".format(n_iteration,filename_counter,write_folder)
-    with open(sfw,'w') as fw:
+    sfw = "{2}/f{0}_{1:05d}/nmr_h_shifts_regression_par.dat".format(
+        n_iteration, filename_counter, write_folder)
+    with open(sfw, 'w') as fw:
         fw.write(H_reg_par)
-    sfw="{2}/f{0}_{1:05d}/nmr_c_shifts_regression_par.dat".format(n_iteration,filename_counter,write_folder)
-    with open(sfw,'w') as fw:
+    sfw = "{2}/f{0}_{1:05d}/nmr_c_shifts_regression_par.dat".format(
+        n_iteration, filename_counter, write_folder)
+    with open(sfw, 'w') as fw:
         fw.write(C_reg_par)
 
-    memory,nproc = qm_m_nproc
-    g_header0="""%mem={0}GB
+    memory, nproc = qm_m_nproc
+    g_header0 = """%mem={0}GB
 %nproc={1}
 #LC-BLYP/gen nmr=csgt nosymm  Scrf=(cpcm,solvent={4})
 
 nmr chemical shifts
 
 {2} {3} 
-""".format(memory,nproc,frame_features_i.molecule_features.charge,frame_features_i.molecule_features.multiplicity,pcm_solvent)
+""".format(memory, nproc, frame_features_i.molecule_features.charge, frame_features_i.molecule_features.multiplicity, pcm_solvent)
 
     # Basis set for chemical shifts
-    #pcS-2
-    s_bs_H="""H     0
+    # pcS-2
+    s_bs_H = """H     0
 S   4   1.00
       0.754226D+02           0.406941D-02
       0.113499D+02           0.322324D-01
@@ -683,7 +709,7 @@ D   1   1.00
       0.125000D+01           0.100000D+01
 ****
 """
-    s_bs_C="""C     0
+    s_bs_C = """C     0
 S   7   1.00
       0.785710D+04           0.642223D-03
       0.117865D+04           0.493018D-02
@@ -723,7 +749,7 @@ F   1   1.00
       0.950000D+00           0.100000D+01
 ****
 """
-    s_bs_N="""N     0
+    s_bs_N = """N     0
 S   7   1.00
       0.111014D+05           0.618632D-03
       0.166525D+04           0.475787D-02
@@ -763,7 +789,7 @@ F   1   1.00
       0.102000D+01           0.100000D+01
 ****
 """
-    s_bs_O="""O     0
+    s_bs_O = """O     0
 S   7   1.00
       0.147824D+05           0.607282D-03
       0.221733D+04           0.467273D-02
@@ -804,39 +830,42 @@ F   1   1.00
 ****
 """
     # Prepare NMR basis set
-    gen_bs=''
+    gen_bs = ''
     for atom_j in set(frame_features_i.molecule_features.atom_list):
-        atom_i_list=[i+1 for i,val in enumerate(frame_features_i.molecule_features.atom_list) if val==atom_j]
+        atom_i_list = [
+            i+1 for i, val in enumerate(frame_features_i.molecule_features.atom_list) if val == atom_j]
         if atom_j == 'H':
-            gen_bs+=s_bs_H
+            gen_bs += s_bs_H
         elif atom_j == 'C':
-            gen_bs+=s_bs_C
+            gen_bs += s_bs_C
         elif atom_j == 'N':
-            gen_bs+=s_bs_N
+            gen_bs += s_bs_N
         elif atom_j == 'O':
-            gen_bs+=s_bs_O
+            gen_bs += s_bs_O
         else:
-            gen_bs+='{0} 0\n6-311++G**\n****\n'.format(atom_j)
+            gen_bs += '{0} 0\n6-311++G**\n****\n'.format(atom_j)
 
-    file_out="{2}/f{0}_{1:05d}/g_nmr_shifts_sample.inp".format(n_iteration,filename_counter,write_folder)
-    with open(file_out,'w') as fw0:
+    file_out = "{2}/f{0}_{1:05d}/g_nmr_shifts_sample.inp".format(
+        n_iteration, filename_counter, write_folder)
+    with open(file_out, 'w') as fw0:
         fw0.write(g_header0)
         # Molecule coordinates
         for i in list(frame_features_i.mol_idx):
-            res=str(frame.topology.atom(i).residue)[0:3]
-            atom=str(frame.topology.atom(i).name)
-            index=str((frame.topology.atom(i).index)+1)
-            atom_name=frame.topology.atom(int(i)).element.symbol
-            atom_xyz=10*(frame.xyz[0][int(i)]-frame_features_i.average_coords)
+            res = str(frame.topology.atom(i).residue)[0:3]
+            atom = str(frame.topology.atom(i).name)
+            index = str((frame.topology.atom(i).index)+1)
+            atom_name = frame.topology.atom(int(i)).element.symbol
+            atom_xyz = 10*(frame.xyz[0][int(i)] -
+                           frame_features_i.average_coords)
 
-            with open(itp_file,"r") as itpf:
-                lines=itpf.readlines()
+            with open(itp_file, "r") as itpf:
+                lines = itpf.readlines()
                 for line in lines:
-                    if re.search(" "+res+" ",line) and re.search(" "+atom+" ",line) and re.search(" "+index+" ",line):
-                        atom_type=line.split()[1]
-                        atom_charge=line.split()[6]
-            fw0.write(" {0}  0  {3:0.3f} {4:0.3f} {5:0.3f} \n".format(atom_name,atom_type,atom_charge,\
-                                                    float(atom_xyz[0]),float(atom_xyz[1]),float(atom_xyz[2])))
+                    if re.search(" "+res+" ", line) and re.search(" "+atom+" ", line) and re.search(" "+index+" ", line):
+                        atom_type = line.split()[1]
+                        atom_charge = line.split()[6]
+            fw0.write(" {0}  0  {3:0.3f} {4:0.3f} {5:0.3f} \n".format(atom_name, atom_type, atom_charge,
+                                                                      float(atom_xyz[0]), float(atom_xyz[1]), float(atom_xyz[2])))
         fw0.write('\n')
         fw0.write(gen_bs)
         fw0.write('\n')
@@ -846,7 +875,9 @@ F   1   1.00
 
 ## NMR spin-spin couplings ##
 # calculate spin-spin couplings using pcm solvation scheme + pcJ-1 basis set
-def make_gaussian_inputs_o1_nmr_spinspin_couplings(filename_counter,frame,frame_features_i,n_iteration,qm_m_nproc,write_folder,**kwargs):
+
+
+def make_gaussian_inputs_o1_nmr_spinspin_couplings(filename_counter, frame, frame_features_i, n_iteration, qm_m_nproc, write_folder, **kwargs):
 
     # set solvent
     try:
@@ -854,19 +885,18 @@ def make_gaussian_inputs_o1_nmr_spinspin_couplings(filename_counter,frame,frame_
     except:
         pcm_solvent = 'water'
 
-
-    memory,nproc=qm_m_nproc
-    g_header="""%mem={0}GB
+    memory, nproc = qm_m_nproc
+    g_header = """%mem={0}GB
 %nproc={1}
 #mPW1PW91/gen nmr=(FCOnly,ReadAtoms) nosymm int=nobasistransform scrf=(cpcm,solvent={4})
 
 spinspin calculation
 
 {2} {3}
-""".format(memory,nproc,frame_features_i.molecule_features.charge,frame_features_i.molecule_features.multiplicity,pcm_solvent)
+""".format(memory, nproc, frame_features_i.molecule_features.charge, frame_features_i.molecule_features.multiplicity, pcm_solvent)
     # Basis set for spin-spin coupling constants
-    #pcJ-1
-    Jij_bs_H="""H     0
+    # pcJ-1
+    Jij_bs_H = """H     0
 S   2   1.00
 0.382870E+04           0.110942E-01
 0.153148E+03           0.500000E+00
@@ -883,7 +913,7 @@ P   1   1.00
 0.1000000000E+01       1.0000000
 ****
 """
-    Jij_bs_C="""C     0
+    Jij_bs_C = """C     0
 S   4   1.00
 0.391451E+06           0.811630E-04
 0.156580E+05           0.365259E-02
@@ -913,7 +943,7 @@ D   1   1.00
 0.8000000000E+00       1.0000000
 ****
 """
-    Jij_bs_N="""N     0
+    Jij_bs_N = """N     0
 S   4   1.00
 0.544422E+06           0.810423E-04
 0.217769E+05           0.364660E-02
@@ -943,7 +973,7 @@ D   1   1.00
 0.9000000000E+00       1.0000000
 ****
 """
-    Jij_bs_O="""O     0
+    Jij_bs_O = """O     0
 S   4   1.00
 0.720859E+06           0.809643E-04
 0.288343E+05           0.364263E-02
@@ -974,49 +1004,48 @@ D   1   1.00
 ****
 """
     # Prepare Jij spinspin NMR basis set
-    gen_bs=''
+    gen_bs = ''
     for atom_j in set(frame_features_i.molecule_features.atom_list):
-        atom_i_list=[i+1 for i,val in enumerate(frame_features_i.molecule_features.atom_list) if val==atom_j]
+        atom_i_list = [
+            i+1 for i, val in enumerate(frame_features_i.molecule_features.atom_list) if val == atom_j]
         if atom_j == 'H':
-            gen_bs+=Jij_bs_H
+            gen_bs += Jij_bs_H
         elif atom_j == 'C':
-            gen_bs+=Jij_bs_C
+            gen_bs += Jij_bs_C
         elif atom_j == 'N':
-            gen_bs+=Jij_bs_N
+            gen_bs += Jij_bs_N
         elif atom_j == 'O':
-            gen_bs+=Jij_bs_O
+            gen_bs += Jij_bs_O
         else:
-            gen_bs+='{0} 0\n6-311++G**\n****\n'.format(atom_j)
-
-
-
-
+            gen_bs += '{0} 0\n6-311++G**\n****\n'.format(atom_j)
 
     try:
         set_jij_atom_couplings = kwargs['set_jij_atom_couplings']
         Jij_atom_select = 'atoms=' + set_jij_atom_couplings
     except:
 
-        Jij_atom_select=''
-        al1=set(frame_features_i.molecule_features.atom_list)
-        Jij_atom_select+='atoms=H'
+        Jij_atom_select = ''
+        al1 = set(frame_features_i.molecule_features.atom_list)
+        Jij_atom_select += 'atoms=H'
         for i in al1:
-            if i=='C':
-                Jij_atom_select+=',C'
-            elif i=='N':
-                Jij_atom_select+=',N'
+            if i == 'C':
+                Jij_atom_select += ',C'
+            elif i == 'N':
+                Jij_atom_select += ',N'
             else:
                 pass
 
-    file_out0="{2}/f{0}_{1:05d}/g_nmr_spinspin_sample.inp".format(n_iteration,filename_counter,write_folder)
-    with open(file_out0,'w') as fw:
+    file_out0 = "{2}/f{0}_{1:05d}/g_nmr_spinspin_sample.inp".format(
+        n_iteration, filename_counter, write_folder)
+    with open(file_out0, 'w') as fw:
         fw.write(g_header)
         # Molecule coordinates
         for i in list(frame_features_i.mol_idx):
-            atom_name=frame.topology.atom(int(i)).element.symbol
-            atom_xyz=10*(frame.xyz[0][int(i)]-frame_features_i.average_coords)
-            fw.write(" {0} 0 {1:0.3f} {2:0.3f} {3:0.3f} \n".format(atom_name,\
-                                                    float(atom_xyz[0]),float(atom_xyz[1]),float(atom_xyz[2])))
+            atom_name = frame.topology.atom(int(i)).element.symbol
+            atom_xyz = 10*(frame.xyz[0][int(i)] -
+                           frame_features_i.average_coords)
+            fw.write(" {0} 0 {1:0.3f} {2:0.3f} {3:0.3f} \n".format(atom_name,
+                                                                   float(atom_xyz[0]), float(atom_xyz[1]), float(atom_xyz[2])))
 
         fw.write('\n')
         fw.write(gen_bs)
@@ -1025,22 +1054,24 @@ D   1   1.00
         fw.write('\n\n')
 
 # dqs submit script
-def make_gaussian_inputs_o1_make_dqs_aurum(filename_counter,w_calculate,n_iteration,write_folder):
+
+
+def make_gaussian_inputs_o1_make_dqs_aurum(filename_counter, w_calculate, n_iteration, write_folder):
 
     if w_calculate[0] != 1:
-        c_vib_v='#'
+        c_vib_v = '#'
     else:
-        c_vib_v=''
+        c_vib_v = ''
     if w_calculate[1] != 1:
-        c_shifts_v='#'
+        c_shifts_v = '#'
     else:
-        c_shifts_v=''
+        c_shifts_v = ''
     if w_calculate[2] != 1:
-        c_spinspin_v='#'
+        c_spinspin_v = '#'
     else:
-        c_spinspin_v=''
+        c_spinspin_v = ''
 
-    final_g_dqs_file=f"""#!/bin/bash
+    final_g_dqs_file = f"""#!/bin/bash
 {config.cluster_bash_header['gaussian_o1']}
 
 # optimization
@@ -1073,7 +1104,7 @@ python g_inp_file_preparation_pcm.py g_opt2.inp.log g_nmr_spinspin.inp g_nmr_spi
 exit 0
 """
 
-    with open("{2}/f{0}_{1:05d}/qsub_ROA_calc.inp.dqs".format(n_iteration,filename_counter,write_folder),"w+") as frame_qsub_ROA_calc_dqs:
+    with open("{2}/f{0}_{1:05d}/qsub_ROA_calc.inp.dqs".format(n_iteration, filename_counter, write_folder), "w+") as frame_qsub_ROA_calc_dqs:
         frame_qsub_ROA_calc_dqs.write(final_g_dqs_file)
 
 ####################################
@@ -1089,13 +1120,15 @@ exit 0
 
 ## Raman/ROA ##
 # 6-311++G** basis set for frequencies/intensities
-def make_gaussian_inputs_o2_raman_roa(filename_counter,frame, frame_features_i, oniom_vdw_parameters,itp_file,n_iteration,qm_m_nproc,write_folder):
+
+
+def make_gaussian_inputs_o2_raman_roa(filename_counter, frame, frame_features_i, oniom_vdw_parameters, itp_file, n_iteration, qm_m_nproc, write_folder):
     # Raman g input files
     # Initial guess for the scaling function
     scaling_function = '0.98 1.0 15 1210'
 
-    memory,nproc=qm_m_nproc
-    gh0_ram="""%chk=raman_calc_chk.chk
+    memory, nproc = qm_m_nproc
+    gh0_ram = """%chk=raman_calc_chk.chk
 %mem={0}GB
 %nproc={1}
 #oniom(B3LYP/6-311++G**:amber=softfirst)=embedcharge freq=roa nosymm geom=(connectivity,nomicro) Scrf=(cpcm,solvent=water)
@@ -1103,39 +1136,42 @@ def make_gaussian_inputs_o2_raman_roa(filename_counter,frame, frame_features_i, 
 raman/roa calculation
 
 {2} {3} {2} {3} {2} {3}
-""".format(memory,nproc,frame_features_i.molecule_features.charge,frame_features_i.molecule_features.multiplicity)
+""".format(memory, nproc, frame_features_i.molecule_features.charge, frame_features_i.molecule_features.multiplicity)
 
-    file_out0="{2}/f{0}_{1:05d}/g_raman_sample0.inp".format(n_iteration,filename_counter,write_folder)
-    with open(file_out0,'w') as fw0:
+    file_out0 = "{2}/f{0}_{1:05d}/g_raman_sample0.inp".format(
+        n_iteration, filename_counter, write_folder)
+    with open(file_out0, 'w') as fw0:
         fw0.write(gh0_ram)
         # Molecule coordinates
         for i in list(frame_features_i.mol_idx):
-            res=str(frame.topology.atom(i).residue)[0:3]
-            atom=str(frame.topology.atom(i).name)
-            index=str((frame.topology.atom(i).index)+1)
-            atom_name=frame.topology.atom(int(i)).element.symbol
-            atom_xyz=10*(frame.xyz[0][int(i)]-frame_features_i.average_coords)
+            res = str(frame.topology.atom(i).residue)[0:3]
+            atom = str(frame.topology.atom(i).name)
+            index = str((frame.topology.atom(i).index)+1)
+            atom_name = frame.topology.atom(int(i)).element.symbol
+            atom_xyz = 10*(frame.xyz[0][int(i)] -
+                           frame_features_i.average_coords)
 
-            with open(itp_file,"r") as itpf:
-                lines=itpf.readlines()
+            with open(itp_file, "r") as itpf:
+                lines = itpf.readlines()
                 for line in lines:
-                    if re.search(" "+res+" ",line) and re.search(" "+atom+" ",line) and re.search(" "+index+" ",line):
-                        atom_type=line.split()[1]
-                        atom_charge=line.split()[6]
-            fw0.write(" {0}-{1}-{2}  0  {3:0.3f} {4:0.3f} {5:0.3f} H\n".format(atom_name,atom_type,atom_charge,\
-                                                    float(atom_xyz[0]),float(atom_xyz[1]),float(atom_xyz[2])))
+                    if re.search(" "+res+" ", line) and re.search(" "+atom+" ", line) and re.search(" "+index+" ", line):
+                        atom_type = line.split()[1]
+                        atom_charge = line.split()[6]
+            fw0.write(" {0}-{1}-{2}  0  {3:0.3f} {4:0.3f} {5:0.3f} H\n".format(atom_name, atom_type, atom_charge,
+                                                                               float(atom_xyz[0]), float(atom_xyz[1]), float(atom_xyz[2])))
         # Water coordinates
         for i in list(frame_features_i.water_around_idx):
-            atom_name=frame.topology.atom(int(i)).element.symbol
-            atom_xyz=10*(frame.xyz[0][int(i)]-frame_features_i.average_coords)
+            atom_name = frame.topology.atom(int(i)).element.symbol
+            atom_xyz = 10*(frame.xyz[0][int(i)] -
+                           frame_features_i.average_coords)
             if atom_name == 'O':
-                atom_type='OW'
-                atom_charge='-0.834'
+                atom_type = 'OW'
+                atom_charge = '-0.834'
             else:
-                atom_type='HW'
-                atom_charge='0.417'
-            fw0.write(" {0}-{1}-{2}  0  {3:0.3f} {4:0.3f} {5:0.3f} L\n".format(atom_name,atom_type,atom_charge,\
-                                                    float(atom_xyz[0]),float(atom_xyz[1]),float(atom_xyz[2])))
+                atom_type = 'HW'
+                atom_charge = '0.417'
+            fw0.write(" {0}-{1}-{2}  0  {3:0.3f} {4:0.3f} {5:0.3f} L\n".format(atom_name, atom_type, atom_charge,
+                                                                               float(atom_xyz[0]), float(atom_xyz[1]), float(atom_xyz[2])))
         # Write connectivity
         fw0.write('\n')
         fw0.write(frame_features_i.connectivity_string)
@@ -1145,8 +1181,9 @@ raman/roa calculation
         fw0.write('532nm')
         fw0.write('\n\n')
 
-    sfw="{2}/f{0}_{1:05d}/raman_scaling_function.dat".format(n_iteration,filename_counter,write_folder)
-    with open(sfw,'w') as fw:
+    sfw = "{2}/f{0}_{1:05d}/raman_scaling_function.dat".format(
+        n_iteration, filename_counter, write_folder)
+    with open(sfw, 'w') as fw:
         fw.write(scaling_function)
 ## Raman/ROA ##
 
@@ -1154,25 +1191,27 @@ raman/roa calculation
 # same as in low quality o1 - function make_gaussian_inputs_o1_nmr_shifts
 
 ## NMR spin-spin couplings ##
-# same as in low quality o1 - function make_gaussian_inputs_o1_nmr_spinspin_couplings 
+# same as in low quality o1 - function make_gaussian_inputs_o1_nmr_spinspin_couplings
 
 # dqs submit script
-def make_gaussian_inputs_o2_make_dqs_aurum(filename_counter,w_calculate,n_iteration,write_folder):
+
+
+def make_gaussian_inputs_o2_make_dqs_aurum(filename_counter, w_calculate, n_iteration, write_folder):
 
     if w_calculate[0] != 1:
-        c_vib_v='#'
+        c_vib_v = '#'
     else:
-        c_vib_v=''
+        c_vib_v = ''
     if w_calculate[1] != 1:
-        c_shifts_v='#'
+        c_shifts_v = '#'
     else:
-        c_shifts_v=''
+        c_shifts_v = ''
     if w_calculate[2] != 1:
-        c_spinspin_v='#'
+        c_spinspin_v = '#'
     else:
-        c_spinspin_v=''
+        c_spinspin_v = ''
 
-    final_g_dqs_file=f"""#!/bin/bash
+    final_g_dqs_file = f"""#!/bin/bash
 {config.cluster_bash_header['gaussian_o2']}
 
 # optimization
@@ -1203,7 +1242,7 @@ python g_inp_file_preparation_pcm.py g_opt2.inp.log g_nmr_spinspin.inp g_nmr_spi
 exit 0
 """
 
-    with open("{2}/f{0}_{1:05d}/qsub_ROA_calc.inp.dqs".format(n_iteration,filename_counter,write_folder),"w+") as frame_qsub_ROA_calc_dqs:
+    with open("{2}/f{0}_{1:05d}/qsub_ROA_calc.inp.dqs".format(n_iteration, filename_counter, write_folder), "w+") as frame_qsub_ROA_calc_dqs:
         frame_qsub_ROA_calc_dqs.write(final_g_dqs_file)
 
 #####################################
@@ -1215,8 +1254,10 @@ exit 0
 ###########################################
 
 ## optimization - only PCM ##
-## only b3lyp/6-31g* 10 steps
-def make_gaussian_inputs_o3_opt(filename_counter,frame, frame_features_i, oniom_vdw_parameters,itp_file,n_iteration,qm_m_nproc,write_folder,**kwargs):
+# only b3lyp/6-31g* 10 steps
+
+
+def make_gaussian_inputs_o3_opt(filename_counter, frame, frame_features_i, oniom_vdw_parameters, itp_file, n_iteration, qm_m_nproc, write_folder, **kwargs):
 
     # set solvent
     try:
@@ -1225,11 +1266,12 @@ def make_gaussian_inputs_o3_opt(filename_counter,frame, frame_features_i, oniom_
         pcm_solvent = 'water'
 
     # First save geometry
-    groname = "{2}/f{0}_{1:05d}/structure_initial.gro".format(n_iteration,filename_counter,write_folder)
-    memory,nproc=qm_m_nproc
+    groname = "{2}/f{0}_{1:05d}/structure_initial.gro".format(
+        n_iteration, filename_counter, write_folder)
+    memory, nproc = qm_m_nproc
     frame.atom_slice(frame_features_i.mol_idx).save_gro(groname)
 
-    g_header0="""%chk=g_opt.chk
+    g_header0 = """%chk=g_opt.chk
 %mem={0}GB
 %nproc={1}
 #B3LYP/6-31g* nosymm opt=(maxcycles=11) geom=connectivity Scrf=(cpcm,solvent={4})
@@ -1237,47 +1279,51 @@ def make_gaussian_inputs_o3_opt(filename_counter,frame, frame_features_i, oniom_
 optimization - 0 step
 
 {2} {3} 
-""".format(memory,nproc,frame_features_i.molecule_features.charge,frame_features_i.molecule_features.multiplicity,pcm_solvent)
-    g_opt0="{2}/f{0}_{1:05d}/g_opt0.inp".format(n_iteration,filename_counter,write_folder)
-    with open(g_opt0,'w') as fw0:
+""".format(memory, nproc, frame_features_i.molecule_features.charge, frame_features_i.molecule_features.multiplicity, pcm_solvent)
+    g_opt0 = "{2}/f{0}_{1:05d}/g_opt0.inp".format(
+        n_iteration, filename_counter, write_folder)
+    with open(g_opt0, 'w') as fw0:
         fw0.write(g_header0)
         # Molecule coordinates
         for i in list(frame_features_i.mol_idx):
-            res=str(frame.topology.atom(i).residue)[0:3]
-            atom=str(frame.topology.atom(i).name)
-            index=str((frame.topology.atom(i).index)+1)
-            atom_name=frame.topology.atom(int(i)).element.symbol
-            atom_xyz=10*(frame.xyz[0][int(i)]-frame_features_i.average_coords)
+            res = str(frame.topology.atom(i).residue)[0:3]
+            atom = str(frame.topology.atom(i).name)
+            index = str((frame.topology.atom(i).index)+1)
+            atom_name = frame.topology.atom(int(i)).element.symbol
+            atom_xyz = 10*(frame.xyz[0][int(i)] -
+                           frame_features_i.average_coords)
 
-            with open(itp_file,"r") as itpf:
-                lines=itpf.readlines()
+            with open(itp_file, "r") as itpf:
+                lines = itpf.readlines()
                 for line in lines:
-                    if re.search(" "+res+" ",line) and re.search(" "+atom+" ",line) and re.search(" "+index+" ",line):
-                        atom_type=line.split()[1]
-                        atom_charge=line.split()[6]
-            fw0.write(" {0}   {3:0.3f} {4:0.3f} {5:0.3f} \n".format(atom_name,atom_type,atom_charge,\
-                                                    float(atom_xyz[0]),float(atom_xyz[1]),float(atom_xyz[2])))
+                    if re.search(" "+res+" ", line) and re.search(" "+atom+" ", line) and re.search(" "+index+" ", line):
+                        atom_type = line.split()[1]
+                        atom_charge = line.split()[6]
+            fw0.write(" {0}   {3:0.3f} {4:0.3f} {5:0.3f} \n".format(atom_name, atom_type, atom_charge,
+                                                                    float(atom_xyz[0]), float(atom_xyz[1]), float(atom_xyz[2])))
         # Write connectivity
         fw0.write('\n\n')
 ## optimization ##
 
 # dqs submit script
-def make_gaussian_inputs_o3_make_dqs_aurum(filename_counter,w_calculate,n_iteration,write_folder):
+
+
+def make_gaussian_inputs_o3_make_dqs_aurum(filename_counter, w_calculate, n_iteration, write_folder):
 
     if w_calculate[0] != 1:
-        c_vib_v='#'
+        c_vib_v = '#'
     else:
-        c_vib_v=''
+        c_vib_v = ''
     if w_calculate[1] != 1:
-        c_shifts_v='#'
+        c_shifts_v = '#'
     else:
-        c_shifts_v=''
+        c_shifts_v = ''
     if w_calculate[2] != 1:
-        c_spinspin_v='#'
+        c_spinspin_v = '#'
     else:
-        c_spinspin_v=''
+        c_spinspin_v = ''
 
-    final_g_dqs_file=f"""#!/bin/bash
+    final_g_dqs_file = f"""#!/bin/bash
 {config.cluster_bash_header['gaussian_o3']}
 
 # optimization
@@ -1306,8 +1352,7 @@ rm raman_calc_chk.chk
 exit 0
 """
 
-
-    with open("{2}/f{0}_{1:05d}/qsub_ROA_calc.inp.dqs".format(n_iteration,filename_counter,write_folder),"w+") as frame_qsub_ROA_calc_dqs:
+    with open("{2}/f{0}_{1:05d}/qsub_ROA_calc.inp.dqs".format(n_iteration, filename_counter, write_folder), "w+") as frame_qsub_ROA_calc_dqs:
         frame_qsub_ROA_calc_dqs.write(final_g_dqs_file)
 
 ###########################################
@@ -1315,85 +1360,98 @@ exit 0
 ###########################################
 
 
-def prepare_qm_input_files(molecule_features,n_iteration,w_calculate,qm_m_nproc,**prepare_qm_input_files_kwargs):
-    
+def prepare_qm_input_files(molecule_features, n_iteration, w_calculate, qm_m_nproc, **prepare_qm_input_files_kwargs):
+
     logger.notice("Preparing QM input files")
 
     # set method
     try:
         method = prepare_qm_input_files_kwargs['method']
     except:
-        logger.warning("Problem with setting qm generate input files. Defaulting to m1_raman_low.")
+        logger.warning(
+            "Problem with setting qm generate input files. Defaulting to m1_raman_low.")
         method = 'm1_raman_low'
-        
-    # set oniom vdw parameters
-    oniom_vdw_parameters = set_oniom_vdw_parameters(**prepare_qm_input_files_kwargs)
-    
-    # what to calculate
-    c_vib,c_shifts,c_spinspin = w_calculate
-    
-    # make initial folders if needed
-    os.makedirs("figures",exist_ok=True)
-    os.makedirs("tmp_files",exist_ok=True)
 
-    xtc_file='new_iteration_{0}/MD_frames/frames_opt_cat.xtc'.format(n_iteration)
-    itp_file=glob.glob('needed_files/md_inp_files/*itp')[0]
+    # set oniom vdw parameters
+    oniom_vdw_parameters = set_oniom_vdw_parameters(
+        **prepare_qm_input_files_kwargs)
+
+    # what to calculate
+    c_vib, c_shifts, c_spinspin = w_calculate
+
+    # make initial folders if needed
+    os.makedirs("figures", exist_ok=True)
+    os.makedirs("tmp_files", exist_ok=True)
+
+    xtc_file = 'new_iteration_{0}/MD_frames/frames_opt_cat.xtc'.format(
+        n_iteration)
+    itp_file = glob.glob('needed_files/md_inp_files/*itp')[0]
     pdb_file = glob.glob('needed_files/md_inp_files/*pdb')[0]
-    
+
     try:
         shutil.rmtree("new_iteration_{0}/input_files".format(n_iteration))
     except OSError:
         pass
     os.makedirs("new_iteration_{0}/input_files".format(n_iteration))
-    
-    t = mdtraj.load(xtc_file, top = pdb_file,standard_names=False)
+
+    t = mdtraj.load(xtc_file, top=pdb_file, standard_names=False)
 
     #######################################################################
-    filename_counter=0
-   
+    filename_counter = 0
+
     for frame in t[::1]:
         # Make directory
-        os.makedirs("new_iteration_{0}/input_files/f{0}_{1:05d}".format(n_iteration,filename_counter))
+        os.makedirs(
+            "new_iteration_{0}/input_files/f{0}_{1:05d}".format(n_iteration, filename_counter))
 
         # Write what is gonna be calculated
-        calc_name = "new_iteration_{0}/input_files/f{0}_{1:05d}/calculate.dat".format(n_iteration,filename_counter)
-        with open(calc_name,'w') as fw:
+        calc_name = "new_iteration_{0}/input_files/f{0}_{1:05d}/calculate.dat".format(
+            n_iteration, filename_counter)
+        with open(calc_name, 'w') as fw:
             fw.write('vibrational_data {0}\n'.format(c_vib))
             fw.write('chemical_shifts {0}\n'.format(c_shifts))
             fw.write('spinspin_couplings {0}\n'.format(c_spinspin))
-                
-##################################################################################################                    
+
+##################################################################################################
         # call the class for the frame
-        frame_features_i = frame_features(frame,molecule_features)
-##################################################################################################                    
-      
+        frame_features_i = frame_features(frame, molecule_features)
+##################################################################################################
+
         write_folder = 'new_iteration_{0}/input_files'.format(n_iteration)
-        
+
         # option 1 - Raman low quality
-        if method == 'm1_raman_low':       
-            make_gaussian_inputs_o1_opt(filename_counter,frame, frame_features_i, oniom_vdw_parameters,itp_file,n_iteration,qm_m_nproc,write_folder)
-            make_gaussian_inputs_o1_raman_roa(filename_counter,frame, frame_features_i, oniom_vdw_parameters,itp_file,n_iteration,qm_m_nproc,write_folder)
-            make_gaussian_inputs_o1_nmr_shifts(filename_counter,frame, frame_features_i, oniom_vdw_parameters,itp_file,n_iteration,qm_m_nproc,write_folder)
-            make_gaussian_inputs_o1_nmr_spinspin_couplings(filename_counter,frame,frame_features_i,n_iteration,qm_m_nproc,write_folder)
-            make_gaussian_inputs_o1_make_dqs_aurum(filename_counter,w_calculate,n_iteration,write_folder)
-            make_python_scripts(n_iteration,filename_counter,molecule_features,write_folder)           
-            
+        if method == 'm1_raman_low':
+            make_gaussian_inputs_o1_opt(filename_counter, frame, frame_features_i,
+                                        oniom_vdw_parameters, itp_file, n_iteration, qm_m_nproc, write_folder)
+            make_gaussian_inputs_o1_raman_roa(
+                filename_counter, frame, frame_features_i, oniom_vdw_parameters, itp_file, n_iteration, qm_m_nproc, write_folder)
+            make_gaussian_inputs_o1_nmr_shifts(
+                filename_counter, frame, frame_features_i, oniom_vdw_parameters, itp_file, n_iteration, qm_m_nproc, write_folder)
+            make_gaussian_inputs_o1_nmr_spinspin_couplings(
+                filename_counter, frame, frame_features_i, n_iteration, qm_m_nproc, write_folder)
+            make_gaussian_inputs_o1_make_dqs_aurum(
+                filename_counter, w_calculate, n_iteration, write_folder)
+            make_python_scripts(n_iteration, filename_counter,
+                                molecule_features, write_folder)
+
         # option 2 - Raman high quality
         elif method == 'm2_raman_high':
 
             # optimization, shifts, and spinspin couplings are the same as in option 1
-            make_gaussian_inputs_o1_opt(filename_counter,frame, frame_features_i, oniom_vdw_parameters,itp_file,n_iteration,qm_m_nproc,write_folder)
-            make_gaussian_inputs_o2_raman_roa(filename_counter,frame, frame_features_i, oniom_vdw_parameters,itp_file,n_iteration,qm_m_nproc,write_folder)
-            make_gaussian_inputs_o1_nmr_shifts(filename_counter,frame, frame_features_i, oniom_vdw_parameters,itp_file,n_iteration,qm_m_nproc,write_folder)
-            make_gaussian_inputs_o1_nmr_spinspin_couplings(filename_counter,frame,frame_features_i,n_iteration,qm_m_nproc,write_folder)
-            make_gaussian_inputs_o2_make_dqs_aurum(filename_counter,w_calculate,n_iteration,write_folder)
-            make_python_scripts(n_iteration,filename_counter,molecule_features,write_folder)           
+            make_gaussian_inputs_o1_opt(filename_counter, frame, frame_features_i,
+                                        oniom_vdw_parameters, itp_file, n_iteration, qm_m_nproc, write_folder)
+            make_gaussian_inputs_o2_raman_roa(
+                filename_counter, frame, frame_features_i, oniom_vdw_parameters, itp_file, n_iteration, qm_m_nproc, write_folder)
+            make_gaussian_inputs_o1_nmr_shifts(
+                filename_counter, frame, frame_features_i, oniom_vdw_parameters, itp_file, n_iteration, qm_m_nproc, write_folder)
+            make_gaussian_inputs_o1_nmr_spinspin_couplings(
+                filename_counter, frame, frame_features_i, n_iteration, qm_m_nproc, write_folder)
+            make_gaussian_inputs_o2_make_dqs_aurum(
+                filename_counter, w_calculate, n_iteration, write_folder)
+            make_python_scripts(n_iteration, filename_counter,
+                                molecule_features, write_folder)
 
         # file counter
-        filename_counter+=1
+        filename_counter += 1
 
     logger.info("Done preparing QM input files")
-
-
-
-

@@ -4,13 +4,13 @@ import pathlib
 from pathlib import Path
 
 default_path = {
-        # gromacs
-        'gmx': 'gmx',
+    # gromacs
+    'gmx': 'gmx',
 
-        # gromacs-plumed
-        'mdrun_plumed': 'mdrun_plumed',
-        'plumed': 'plumed',
-    }
+    # gromacs-plumed
+    'mdrun_plumed': 'mdrun_plumed',
+    'plumed': 'plumed',
+}
 
 host = socket.gethostname()
 if host == 'lucy':
@@ -22,7 +22,7 @@ if host == 'lucy':
         'mdrun_plumed': Path('/usr/bin/mdrun_plumed'),
         'plumed': Path('/usr/bin/plumed'),
     }
-elif (host == 'login1.aurum.ccf.uochb.local' 
+elif (host == 'login1.aurum.ccf.uochb.local'
         or re.match(r'ai\d+\.aurum\.ccf\.uochb\.local', host)):
 
     path = default_path
@@ -30,8 +30,8 @@ elif (host == 'login1.aurum.ccf.uochb.local'
     path['gmx'] = 'gmx'
     path['gmx make_ndx'] = 'gmx make_ndx'
     path['mdrun_plumed'] = 'gmx mdrun'
-    
-    environment_setup = {        
+
+    environment_setup = {
         'gromacs': [
             "source /opt/uochb/soft/spack/20210305/share/spack/setup-env.sh",
             "spack load gromacs",
@@ -52,7 +52,7 @@ elif (host == 'login1.aurum.ccf.uochb.local'
             # "spack env activate gromacs2020",
         ],
 
-        'gaussian': None, 
+        'gaussian': None,
         # 'gaussian': [
         #     "export g16root=/opt/uochb/soft/gaussian/gaussian16_a03/arch/amd64-pgi_12.10-acml",
         #     "export LD_LIBRARY_PATH=/opt/uochb/soft/gaussian/gaussian16_a03/arch/amd64-pgi_12.10-acml/g16",
@@ -67,7 +67,7 @@ else:
 
 
 slurm_additional_parameters = {
-    'qos':'backfill',
+    'qos': 'backfill',
     'reservation': 'ondra',
 }
 
@@ -75,7 +75,7 @@ slurm_additional_parameters = {
 cluster_bash_header = {}
 
 cluster_bash_header['gaussian_o1'] = (
-"""
+    """
 #SBATCH -J g1
 #SBATCH --qos=normal
 #SBATCH --time=0-12
@@ -95,7 +95,7 @@ conda activate sugaroptim
 )
 
 cluster_bash_header['gaussian_o2'] = (
-"""
+    """
 #SBATCH -J g1
 #SBATCH --qos=backfill
 #SBATCH --time=0-4
@@ -115,7 +115,7 @@ conda activate sugaroptim
 )
 
 cluster_bash_header['gaussian_o3'] = (
-"""
+    """
 #SBATCH -J g1
 #SBATCH --qos=backfill
 #SBATCH --time=0-4

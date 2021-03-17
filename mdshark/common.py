@@ -1,3 +1,4 @@
+from mdshark import config
 import os
 import sys
 import subprocess
@@ -7,22 +8,24 @@ import logging
 
 assert sys.version_info >= (3, 6)
 
-from mdshark import config
 
 try:
-    import coloredlogs, verboselogs
+    import coloredlogs
+    import verboselogs
 
     logger = verboselogs.VerboseLogger('mdshark')
     # level = 'SPAM'
     level = 'DEBUG'
     # logger.setLevel(level)
-    coloredlogs.install(fmt='%(asctime)s %(message)s', level=level, logger=logger)
+    coloredlogs.install(fmt='%(asctime)s %(message)s',
+                        level=level, logger=logger)
 
 except ModuleNotFoundError:
-    
+
     logging.basicConfig(format='%(asctime)s %(message)s')
     logger = logging.getLogger('mdshark')
-    logger.warning("Modules coloredlogs and/or verboselogs not found, using original logging module.")
+    logger.warning(
+        "Modules coloredlogs and/or verboselogs not found, using original logging module.")
     logger.setLevel(logging.DEBUG)
 
 
@@ -33,12 +36,12 @@ def do_nothing():
 def run_submit_multi(cmd, cwd, env_setup, wait_complete=True):
 
     command = (config.environment_setup[env_setup]
-        + ["set -e", f"cd {cwd}"] 
-        + cmd 
-        + ["set +e"])
+               + ["set -e", f"cd {cwd}"]
+               + cmd
+               + ["set +e"])
 
     executor = submitit.AutoExecutor(folder="log_test")
-    executor.update_parameters( 
+    executor.update_parameters(
         timeout_min=4*60,
         mem_gb=80,
         cpus_per_task=36,
@@ -51,7 +54,7 @@ def run_submit_multi(cmd, cwd, env_setup, wait_complete=True):
 
     if not wait_complete:
         return job
-        
+
     output = job.result()
     # print(job.stderr())
     # print(job.stdout())
@@ -61,7 +64,7 @@ def run_submit_multi(cmd, cwd, env_setup, wait_complete=True):
 def run_submit(cmd, cwd, env_setup, wait_complete=True):
 
     executor = submitit.AutoExecutor(folder="log_test")
-    executor.update_parameters( 
+    executor.update_parameters(
         timeout_min=4*60,
         mem_gb=80,
         cpus_per_task=36,
@@ -91,10 +94,10 @@ def run(cmd):
         my_env = os.environ.copy()
         # print(my_env)
         subprocess.run(cmd, shell=True, check=True, env=my_env,
-            stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+                       stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 
     except subprocess.CalledProcessError as e:
-        
+
         print(f"The system command")
         print(f"    {cmd}")
         print(f"resulted in an error.")
@@ -109,8 +112,9 @@ def run(cmd):
         print(f" -- captured stderr:")
         if e.stderr is not None:
             print(e.stderr.decode('utf-8'))
-        
+
         raise(e)
+
 
 def run_popen(command, cwd, verbose=False):
     """
@@ -142,7 +146,8 @@ def run_popen(command, cwd, verbose=False):
         except Exception as e:
             process.kill()
             process.wait()
-            raise FailedJobError("Job got killed for an unknown reason.") from e
+            raise FailedJobError(
+                "Job got killed for an unknown reason.") from e
         stderr = process.communicate()[1]  # we already got stdout
         stdout = "\n".join(outlines)
         retcode = process.poll()
@@ -155,13 +160,14 @@ def run_popen(command, cwd, verbose=False):
             raise FailedJobError(stderr.decode()) from subprocess_error
     return stdout
 
+
 def get_default_executor(env_setup):
-    executor = submitit.AutoExecutor(folder="log_test")        
+    executor = submitit.AutoExecutor(folder="log_test")
     executor.update_parameters(
-            timeout_min=4*60,
-            mem_gb=90,
-            cpus_per_task=36,
-            slurm_setup=config.environment_setup[env_setup],
-            slurm_additional_parameters=config.slurm_additional_parameters)
+        timeout_min=4*60,
+        mem_gb=90,
+        cpus_per_task=36,
+        slurm_setup=config.environment_setup[env_setup],
+        slurm_additional_parameters=config.slurm_additional_parameters)
 
     return executor
