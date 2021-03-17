@@ -36,8 +36,6 @@ class MDSharkOptimizer:
         if self.stop_optimization_when_n_structures_reached_C is None:
             self.stop_optimization_when_n_structures_reached_C = 3 * self.generate_structures // 5
 
-        os.chdir(self.top_dir)
-
         self.n_iteration = 0 # n iteration
 
         ##################################
@@ -112,7 +110,7 @@ class MDSharkOptimizer:
 
 
         num_failed = 0
-        for job, i in enumerate(jobs):
+        for i, job in enumerate(jobs):
             try:
                 output = job.result()
             except submitit.core.utils.FailedJobError:
@@ -125,7 +123,8 @@ class MDSharkOptimizer:
             tol = 0.1
 
             if num_failed / self.generate_structures > tol:
-                logger.critical(f"{100 * num_failed / self.generate_structures} % of jobs failed. Maybe check the output files...")
+                logger.critical(f"{100 * num_failed / self.generate_structures} % of jobs failed. Check the output files...")
+                raise(ValueError("Too many jobs failed."))
 
         logger.notice("Done")
 
@@ -174,7 +173,7 @@ class MDSharkOptimizer:
                     self.n_iteration,
                     self.generate_structures,
                     final_distribution,
-                    freeze_amide_bonds=freeze_amide_bonds_C)
+                    freeze_amide_bonds=self.freeze_amide_bonds_C)
 
         else:
             raise(ValueError(f"n_iteration is {self.n_iteration}"))
@@ -196,7 +195,7 @@ class MDSharkOptimizer:
                 method=self.prepare_qm_input_files_C,
                 **self.oniom_vdw_parameters_kwargs)
         
-        logger.success(f"Structures + qm input files generated. Proceed to iteration {self.n_iteration + 1}.")
+        logger.success(f"Structures + qm input files generated"}#. Proceed to iteration {self.n_iteration + 1}.")
         
 
     @staticmethod
@@ -217,9 +216,9 @@ class MDSharkOptimizer:
     def calculate_features(self, n_iteration):
 
         # Extract data from iteration X
-        assert(n_iteration >= 1)
+        # assert(n_iteration >= 1)
         
-        it_analyze = n_iteration - 1
+        it_analyze = n_iteration# - 1
         extract_sim_data.calculate_all_sim_data(
                 f'new_iteration_{it_analyze}',
                 self.molecule_features,
