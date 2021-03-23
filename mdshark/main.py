@@ -29,7 +29,7 @@ use_submitit = True
 @dataclass
 class MDSharkOptimizer:
     top_dir: str = None
-    generate_structures: int = 50  # number of generated structures
+    num_structures: int = 50  # number of generated structures
     stop_optimization_when_n_structures_reached_C: int = None
     molecule_features: m_molecular_features.MoleculeFeatures = None
 
@@ -37,7 +37,7 @@ class MDSharkOptimizer:
 
         if self.stop_optimization_when_n_structures_reached_C is None:
             self.stop_optimization_when_n_structures_reached_C = 3 * \
-                self.generate_structures // 5
+                self.num_structures // 5
 
         self.n_iteration = 0  # n iteration
 
@@ -115,7 +115,7 @@ class MDSharkOptimizer:
         cmd = ['bash', 'qsub_ROA_calc.inp.dqs']
 
         jobs = []
-        for i in range(self.generate_structures):
+        for i in range(self.num_structures):
             cwd = write_folder / f"f{self.n_iteration}_{i:05d}"
             job = run_submit(cmd, cwd, 'gaussian', wait_complete=False)
             jobs.append(job)
@@ -130,13 +130,13 @@ class MDSharkOptimizer:
 
         if num_failed > 0:
             logger.warning(
-                f"{num_failed} out of {self.generate_structures} jobs failed.")
+                f"{num_failed} out of {self.num_structures} jobs failed.")
 
             tol = 0.1
 
-            if num_failed / self.generate_structures > tol:
+            if num_failed / self.num_structures > tol:
                 logger.critical(
-                    f"{100 * num_failed / self.generate_structures} % of jobs failed. Check the output files...")
+                    f"{100 * num_failed / self.num_structures} % of jobs failed. Check the output files...")
                 raise(ValueError("Too many jobs failed."))
 
         logger.notice("Done")
@@ -147,14 +147,14 @@ class MDSharkOptimizer:
             function = generate_initial_MD_structures.generate_new_structures
             args = (self.molecule_features,
                     self.n_iteration,
-                    self.generate_structures)
+                    self.num_structures)
             kwargs = {'freeze_amide_bonds': self.freeze_amide_bonds_C}
         else:
             # generate new structures using optimized distributions
             function = generate_n_iteration_MD_structures.generate_new_structures
             args = (self.molecule_features,
                     self.n_iteration,
-                    self.generate_structures, 
+                    self.num_structures, 
                     self.final_distribution)
             kwargs = {'freeze_amide_bonds': self.freeze_amide_bonds_C}
 
@@ -162,7 +162,7 @@ class MDSharkOptimizer:
             executor = get_default_executor('plumed')
             executor.update_parameters(
                 name='generate_new_structures',
-                timeout_min=10*self.generate_structures,
+                timeout_min=10*self.num_structures,
                 slurm_additional_parameters={'mem': '2500M'},
                 cpus_per_task=1,)
 
@@ -176,7 +176,7 @@ class MDSharkOptimizer:
 
         function = optimize_MD_frame.optimize_individual_frames
         args = (self.n_iteration,
-                self.generate_structures,
+                self.num_structures,
                 self.molecule_features)
         kwargs = {'num_workers': self.NUM_WORKERS_C,
             'freeze_amide_bonds': self.freeze_amide_bonds_C}

@@ -31,7 +31,7 @@ if __name__ == "__main__":
 
             mds = MDSharkOptimizer(
                 top_dir=top_dir,
-                generate_structures=10,
+                num_structures=10,
                 molecule_features=molecule_features)
 
             data = {
