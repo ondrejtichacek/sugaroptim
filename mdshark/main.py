@@ -5,6 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import mdtraj as md
 import submitit
+from tqdm import tqdm
 from dataclasses import dataclass
 
 from mdshark import \
@@ -110,6 +111,8 @@ class MDSharkOptimizer:
 
     def perform_qm_calculations(self):
 
+        logger.info("Performing QM calculations")
+
         write_folder = Path(f"new_iteration_{self.n_iteration}/input_files")
 
         cmd = ['bash', 'qsub_ROA_calc.inp.dqs']
@@ -121,7 +124,7 @@ class MDSharkOptimizer:
             jobs.append(job)
 
         num_failed = 0
-        for i, job in enumerate(jobs):
+        for i, job in enumerate(tqdm(jobs)):
             try:
                 output = job.result()
             except submitit.core.utils.FailedJobError:
@@ -142,6 +145,8 @@ class MDSharkOptimizer:
         logger.notice("Done")
 
     def generate_new_structures(self):
+
+        logger.info("Generating new structures")
 
         if self.n_iteration == 0:
             function = generate_initial_MD_structures.generate_new_structures
@@ -174,6 +179,8 @@ class MDSharkOptimizer:
 
     def optimize_new_structures(self):
 
+        logger.info("Optimizing new structures")
+
         function = optimize_MD_frame.optimize_individual_frames
         args = (self.n_iteration,
                 self.num_structures,
@@ -181,7 +188,6 @@ class MDSharkOptimizer:
         kwargs = {'num_workers': self.NUM_WORKERS_C,
             'freeze_amide_bonds': self.freeze_amide_bonds_C}
 
-        output = job.result()
         if use_submitit is True:
             executor = get_default_executor('plumed')
             executor.update_parameters(name='optimize_individual_frames')
@@ -194,6 +200,8 @@ class MDSharkOptimizer:
 
     def create_qm_input_files(self):
 
+        logger.info("Preparing QM input files")
+
         prepare_g_input_files.prepare_qm_input_files(
             self.molecule_features,
             self.n_iteration,
@@ -204,9 +212,9 @@ class MDSharkOptimizer:
 
     def initialize_structures(self, weights=None, all_data=None):
 
-        logger.notice("Generating initial structures")
-
         if self.n_iteration == 0:
+
+            logger.info("Generating initial MD simulation files")
 
             # Generate initial plumed file and assign it, generate index file, write fromacs mdp files
             self.molecule_features.write_plumed('needed_files/plumed_original.dat')
@@ -215,6 +223,8 @@ class MDSharkOptimizer:
             self.molecule_features.write_gromacs_mdp_files()
 
         elif self.n_iteration > 0:
+
+            logger.info("Calculating distribution of optimized features")
 
             # Assign final distribution
             self.final_distribution = calculate_optimized_features_distribution.calculate_new_distribution(
@@ -292,12 +302,12 @@ class MDSharkOptimizer:
             self.new_distribution.append(calculate_optimized_features_distribution.
                                          calculate_new_distribution(weights0, all_data.sim, self.molecule_features, K=1))
 
-            for i in range(self.n_iteration):
+            for i in range(self.n_iteration+1):
 
                 # load data
                 path = f'new_iteration_[0-{i}]'
                 all_data = load_sim_exp_data.data(
-                    path, i+1, self.molecule_features,
+                    path, i, self.molecule_features,
                     self.experimental_data_av,
                     do_not_filter=self.do_not_filter_C)
 
@@ -327,7 +337,7 @@ class MDSharkOptimizer:
                 error_data_array.append(error_data_array_i)
 
         else:
-            path = f'new_iteration_[0-{self.n_iteration-1}]'
+            path = f'new_iteration_[0-{self.n_iteration}]'
             all_data = load_sim_exp_data.data(
                 path, self.n_iteration, self.molecule_features,
                 self.experimental_data_av, do_not_filter=self.do_not_filter_C)

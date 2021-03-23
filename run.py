@@ -15,11 +15,11 @@ if __name__ == "__main__":
 
     it_start = 0
     # it_start = 6
-    num_iterations = 1
+    num_iterations = 3
+
+    logger.info(f"Starting mdshark optimization loop")
 
     for n_iteration in range(it_start, it_start + num_iterations):
-
-        logger.info(f"Starting mdshark optimization loop")
 
         if n_iteration == 0:
             logger.info(f" -- it 0")

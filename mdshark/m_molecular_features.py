@@ -72,7 +72,7 @@ Moreover it will write the initial plumed.dat file.
                 charge = round(sum)
                 logger.warning(
                     "CHECK CHARGE OF YOUR MOLECULE PROPERLY - IT MAY BE WRONG")
-            logger.info(f"Charge of your molecule is: {charge}")
+            logger.verbose(f"Charge of your molecule is: {charge}")
             return charge, charges_array
 
         ################ start ####################
