@@ -68,7 +68,7 @@ else:
 
 slurm_additional_parameters = {
     'qos': 'backfill',
-    'reservation': 'ondra',
+    # 'reservation': 'ondra',
 }
 
 

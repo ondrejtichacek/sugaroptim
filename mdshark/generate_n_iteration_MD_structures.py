@@ -8,7 +8,7 @@ from tqdm import tqdm
 import submitit
 
 from mdshark import config
-from mdshark.common import run, logger
+from mdshark.common import run, run_popen, logger
 
 
 def generate_restrained_MD_plumed_file_targeted_MD(molecule_features, n_iteration, kwargs_dict):
@@ -277,8 +277,16 @@ def run_targeted_md_simulation(cluster_sim_nt, n_iteration):
     else:
         run('cp ../MD_trj/structure_start_sim_prev.gro structure_start_sim.gro')
 
-    run(f"{config.path['gmx']} grompp -f md_prod_itX.mdp -c structure_start_sim.gro -p {topfile} -o job.tpr -n {indexfile} -maxwarn 5")
-    run(f"{config.path['mdrun_plumed']} -s job.tpr -v -deffnm job{cluster_sim_nt}  -nsteps 100000 -nt 1 -plumed  plumed_restraint.dat")
+    try:
+        cmds = [f"{config.path['gmx']} grompp -f md_prod_itX.mdp -c structure_start_sim.gro -p {topfile} -o job.tpr -n {indexfile} -maxwarn 5", 
+                f"{config.path['mdrun_plumed']} -s job.tpr -v -deffnm job{cluster_sim_nt}  -nsteps 100000 -nt 1 -plumed  plumed_restraint.dat"]
+
+        for cmd in cmds:
+            run_popen(cmd.split())
+    
+    except subprocess.CalledProcessError as e:
+        logger.warning(
+            "Exception caught - md simulation error. This may be expected. See the log above in case of other issues.")
 
     os.chdir(c_path)
 
@@ -344,8 +352,10 @@ def generate_new_structures(molecule_features, n_iteration, number_of_new_struct
     os.chdir('new_iteration_{0}/MD_trj'.format(n_iteration))
     grofile = glob.glob(c_path+'/needed_files/md_inp_files/*gro')[0]
     run('cp ../MD/job.tpr job.tpr')
-    run(f"{config.path['gmx']} trjcat -f job*.xtc -o job_cat.xtc -cat")
+    
+    run(f"{config.path['gmx']} trjcat -f job*.xtc -o job_cat.xtc -cat")    
     run('cp {0} structure.gro'.format(grofile))
+
     run(f"printf \"1\n 0\n\"|{config.path['gmx']} trjconv -f job_cat.xtc -s job.tpr -pbc mol -center -o job_cat_center.xtc")
 
     # copy tpr file

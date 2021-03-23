@@ -116,16 +116,22 @@ def run(cmd):
         raise(e)
 
 
-def run_popen(command, cwd, verbose=False):
+def run_popen(command, cwd=None, env=None, verbose=False):
     """
     run compatible with submitit
     """
     full_command = command
 
-    env = os.environ.copy()
+    if env is None:
+        env = os.environ.copy()
+    if cwd is None:
+        cwd = os.getcwd()
+    
+    logger.spam(f"Executing command:")
+    logger.spam(f"    {' '.join(full_command)}")
+    logger.spam(f" -- location:")
+    logger.spam(f"    {os.getcwd()}")
 
-    if verbose:
-        print(f"The following command is sent: \"{' '.join(full_command)}\"")
     outlines: List[str] = []
     with subprocess.Popen(
         full_command,
@@ -153,11 +159,17 @@ def run_popen(command, cwd, verbose=False):
         retcode = process.poll()
         if stderr and (retcode or verbose):
             print(stderr.decode(), file=sys.stderr)
+            print(stdout)
         if retcode:
             subprocess_error = subprocess.CalledProcessError(
                 retcode, process.args, output=stdout, stderr=stderr
             )
             raise FailedJobError(stderr.decode()) from subprocess_error
+
+    if logger.isEnabledFor(verboselogs.SPAM):
+            logger.spam(f" -- captured stdout:")
+            print(stdout)
+
     return stdout
 
 

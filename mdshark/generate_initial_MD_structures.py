@@ -6,7 +6,7 @@ from tqdm import tqdm
 import submitit
 
 from mdshark import config
-from mdshark.common import run, run_submit, run_popen, logger
+from mdshark.common import run, run_popen, logger
 
 
 def run_initial_md_simulation(cluster_sim_nt, n_iteration):
@@ -32,7 +32,7 @@ def run_initial_md_simulation(cluster_sim_nt, n_iteration):
         cmds = [f"{config.path['gmx']} grompp -f md_prod_it0.mdp -c structure_start_sim.gro -p {topfile} -o job.tpr -n {indexfile} -maxwarn 5",
                 f"{config.path['mdrun_plumed']} -s job.tpr -v -deffnm job{cluster_sim_nt} -nsteps 5000 -nt 1 -plumed plumed_restraint.dat"]
         for cmd in cmds:
-            run_popen(cmd.split(), cwd=os.getcwd())
+            run_popen(cmd.split())
 
     except subprocess.CalledProcessError as e:
         logger.warning(

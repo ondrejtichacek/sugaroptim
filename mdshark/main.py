@@ -24,6 +24,7 @@ from mdshark import \
 
 from mdshark.common import run, run_submit, logger, get_default_executor
 
+use_submitit = True
 
 @dataclass
 class MDSharkOptimizer:
@@ -50,7 +51,7 @@ class MDSharkOptimizer:
         # do you want to freeze amide bonds (HNCO dihedral andles) in original conformation?
         self.freeze_amide_bonds_C = False
         # this speeds up optimization of MD frames, ! be careful with number > 2x # of cpus
-        self.NUM_WORKERS_C = 3
+        self.NUM_WORKERS_C = 36
 
         ##################################
         # Obtain optimized weights
@@ -154,22 +155,25 @@ class MDSharkOptimizer:
             self.molecule_features.write_gromacs_mdp_files()
 
             # Generate new structures - initial 0th simualtion
-            # generate_initial_MD_structures.generate_new_structures(
-            #         self.molecule_features,
-            #         self.n_iteration,
-            #         self.generate_structures,
-            #         freeze_amide_bonds=self.freeze_amide_bonds_C)
-
             function = generate_initial_MD_structures.generate_new_structures
             args = (self.molecule_features,
                     self.n_iteration,
                     self.generate_structures)
             kwargs = {'freeze_amide_bonds': self.freeze_amide_bonds_C}
 
-            executor = get_default_executor('plumed')
-            job = executor.submit(function, *args, **kwargs)
+            if use_submitit is True:
+                executor = get_default_executor('plumed')
+                executor.update_parameters(
+                    name='generate_new_structures',
+                    timeout_min=10*self.generate_structures,
+                    slurm_additional_parameters={'mem': '2500M'},
+                    cpus_per_task=1,)
 
-            output = job.result()
+                job = executor.submit(function, *args, **kwargs)
+
+                output = job.result()
+            else:
+                function(*args, **kwargs)
 
         elif self.n_iteration > 0:
 
@@ -181,23 +185,48 @@ class MDSharkOptimizer:
                 K=self.set_K_nd_C)
 
             # generate new structures using optimized distributions
-            generate_n_iteration_MD_structures.generate_new_structures(
-                self.molecule_features,
-                self.n_iteration,
-                self.generate_structures,
-                final_distribution,
-                freeze_amide_bonds=self.freeze_amide_bonds_C)
+            function = generate_n_iteration_MD_structures.generate_new_structures
+            args = (self.molecule_features,
+                    self.n_iteration,
+                    self.generate_structures, 
+                    final_distribution)
+            kwargs = {'freeze_amide_bonds': self.freeze_amide_bonds_C}
+
+            if use_submitit is True:
+                executor = get_default_executor('plumed')
+                executor.update_parameters(
+                    name='generate_new_structures',
+                    timeout_min=10*self.generate_structures,
+                    slurm_additional_parameters={'mem': '2500M'},
+                    cpus_per_task=1,)
+
+                job = executor.submit(function, *args, **kwargs)
+
+                output = job.result()
+            else:
+                function(*args, **kwargs)
 
         else:
             raise(ValueError(f"n_iteration is {self.n_iteration}"))
 
         # optimize MD frames - usable for nth iteration
-        optimize_MD_frame.optimize_individual_frames(
-            self.n_iteration,
-            self.generate_structures,
-            self.molecule_features,
-            num_workers=self.NUM_WORKERS_C,
-            freeze_amide_bonds=self.freeze_amide_bonds_C)
+        function = optimize_MD_frame.optimize_individual_frames
+        args = (self.n_iteration,
+                self.generate_structures,
+                self.molecule_features)
+        kwargs = {'num_workers': self.NUM_WORKERS_C,
+            'freeze_amide_bonds': self.freeze_amide_bonds_C}
+
+        output = job.result()
+        if use_submitit is True:
+            executor = get_default_executor('plumed')
+            executor.update_parameters(name='optimize_individual_frames')
+
+            job = executor.submit(function, *args, **kwargs)
+
+            output = job.result()
+        else:
+            function(*args, **kwargs)
 
         # Generate gaussian input files
         prepare_g_input_files.prepare_qm_input_files(
@@ -208,7 +237,6 @@ class MDSharkOptimizer:
             method=self.prepare_qm_input_files_C,
             **self.oniom_vdw_parameters_kwargs)
 
-        # . Proceed to iteration {self.n_iteration + 1}.")
         logger.success(f"Structures + qm input files generated")
 
     @staticmethod
