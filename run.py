@@ -13,8 +13,8 @@ if __name__ == "__main__":
     weights = None
     all_data = None
 
-    it_start = 0
-    it_start = 2
+    # it_start = 0
+    it_start = 6
     num_iterations = 1
 
     for n_iteration in range(it_start, it_start + num_iterations):
@@ -48,10 +48,23 @@ if __name__ == "__main__":
 
         mds.initialize_structures(weights=weights, all_data=all_data)
 
-        mds.g_submit(n_iteration)
+        # Generate new structures
+        mds.generate_new_structures()        
 
-        mds.calculate_features(n_iteration)
-        all_data, error_data_array, stored_results = mds.optimize(n_iteration)
+        # Optimize MD frames
+        mds.optimize_new_structures()
+
+        # Generate gaussian input files
+        mds.create_qm_input_files()
+
+        # Perform gaussian calculations
+        mds.perform_qm_calculations()
+
+        # Extract data and calculate features
+        mds.calculate_features()
+
+        # Perform heuristic optimization
+        all_data, error_data_array, stored_results = mds.optimize()
 
         weights = stored_results.weights
 

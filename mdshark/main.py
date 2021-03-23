@@ -108,15 +108,15 @@ class MDSharkOptimizer:
         c_spinspin = 1
         self.w_calculate = [c_vib, c_shifts, c_spinspin]
 
-    def g_submit(self, n_iteration):
+    def perform_qm_calculations(self):
 
-        write_folder = Path(f"new_iteration_{n_iteration}/input_files")
+        write_folder = Path(f"new_iteration_{self.n_iteration}/input_files")
 
         cmd = ['bash', 'qsub_ROA_calc.inp.dqs']
 
         jobs = []
         for i in range(self.generate_structures):
-            cwd = write_folder / f"f{n_iteration}_{i:05d}"
+            cwd = write_folder / f"f{self.n_iteration}_{i:05d}"
             job = run_submit(cmd, cwd, 'gaussian', wait_complete=False)
             jobs.append(job)
 
@@ -141,75 +141,39 @@ class MDSharkOptimizer:
 
         logger.notice("Done")
 
-    def initialize_structures(self, weights=None, all_data=None):
-
-        logger.notice("Generating initial structures")
+    def generate_new_structures(self):
 
         if self.n_iteration == 0:
-
-            # Generate initial plumed file and assign it, generate index file, write fromacs mdp files
-            self.molecule_features.write_plumed(
-                'needed_files/plumed_original.dat')
-            self.molecule_features.gro_to_pdb()
-            self.molecule_features.make_index_file()
-            self.molecule_features.write_gromacs_mdp_files()
-
-            # Generate new structures - initial 0th simualtion
             function = generate_initial_MD_structures.generate_new_structures
             args = (self.molecule_features,
                     self.n_iteration,
                     self.generate_structures)
             kwargs = {'freeze_amide_bonds': self.freeze_amide_bonds_C}
-
-            if use_submitit is True:
-                executor = get_default_executor('plumed')
-                executor.update_parameters(
-                    name='generate_new_structures',
-                    timeout_min=10*self.generate_structures,
-                    slurm_additional_parameters={'mem': '2500M'},
-                    cpus_per_task=1,)
-
-                job = executor.submit(function, *args, **kwargs)
-
-                output = job.result()
-            else:
-                function(*args, **kwargs)
-
-        elif self.n_iteration > 0:
-
-            # assign final distribution
-            final_distribution = calculate_optimized_features_distribution.calculate_new_distribution(
-                weights,
-                all_data.sim,
-                self.molecule_features,
-                K=self.set_K_nd_C)
-
+        else:
             # generate new structures using optimized distributions
             function = generate_n_iteration_MD_structures.generate_new_structures
             args = (self.molecule_features,
                     self.n_iteration,
                     self.generate_structures, 
-                    final_distribution)
+                    self.final_distribution)
             kwargs = {'freeze_amide_bonds': self.freeze_amide_bonds_C}
 
-            if use_submitit is True:
-                executor = get_default_executor('plumed')
-                executor.update_parameters(
-                    name='generate_new_structures',
-                    timeout_min=10*self.generate_structures,
-                    slurm_additional_parameters={'mem': '2500M'},
-                    cpus_per_task=1,)
+        if use_submitit is True:
+            executor = get_default_executor('plumed')
+            executor.update_parameters(
+                name='generate_new_structures',
+                timeout_min=10*self.generate_structures,
+                slurm_additional_parameters={'mem': '2500M'},
+                cpus_per_task=1,)
 
-                job = executor.submit(function, *args, **kwargs)
+            job = executor.submit(function, *args, **kwargs)
 
-                output = job.result()
-            else:
-                function(*args, **kwargs)
-
+            output = job.result()
         else:
-            raise(ValueError(f"n_iteration is {self.n_iteration}"))
+            function(*args, **kwargs)
 
-        # optimize MD frames - usable for nth iteration
+    def optimize_new_structures(self):
+
         function = optimize_MD_frame.optimize_individual_frames
         args = (self.n_iteration,
                 self.generate_structures,
@@ -228,7 +192,8 @@ class MDSharkOptimizer:
         else:
             function(*args, **kwargs)
 
-        # Generate gaussian input files
+    def create_qm_input_files(self):
+
         prepare_g_input_files.prepare_qm_input_files(
             self.molecule_features,
             self.n_iteration,
@@ -237,7 +202,29 @@ class MDSharkOptimizer:
             method=self.prepare_qm_input_files_C,
             **self.oniom_vdw_parameters_kwargs)
 
-        logger.success(f"Structures + qm input files generated")
+    def initialize_structures(self, weights=None, all_data=None):
+
+        logger.notice("Generating initial structures")
+
+        if self.n_iteration == 0:
+
+            # Generate initial plumed file and assign it, generate index file, write fromacs mdp files
+            self.molecule_features.write_plumed('needed_files/plumed_original.dat')
+            self.molecule_features.gro_to_pdb()
+            self.molecule_features.make_index_file()
+            self.molecule_features.write_gromacs_mdp_files()
+
+        elif self.n_iteration > 0:
+
+            # Assign final distribution
+            self.final_distribution = calculate_optimized_features_distribution.calculate_new_distribution(
+                weights,
+                all_data.sim,
+                self.molecule_features,
+                K=self.set_K_nd_C)
+
+        else:
+            raise(ValueError(f"n_iteration is {self.n_iteration}"))
 
     @staticmethod
     def calculate_features_after_qm_optimization(molecular_features, directory):
@@ -259,12 +246,11 @@ class MDSharkOptimizer:
                 run("plumed driver --plumed {0}/plumed_additional_features.dat --mf_xtc {0}/trj_tmp.xtc".format(
                     file_i))
 
-    def calculate_features(self, n_iteration):
+    def calculate_features(self):
+
+        it_analyze = self.n_iteration
 
         # Extract data from iteration X
-        # assert(n_iteration >= 1)
-
-        it_analyze = n_iteration  # - 1
         extract_sim_data.calculate_all_sim_data(
             f'new_iteration_{it_analyze}',
             self.molecule_features,
@@ -275,7 +261,7 @@ class MDSharkOptimizer:
             self.molecule_features,
             f'new_iteration_{it_analyze}/input_files')
 
-    def optimize(self, n_iteration, stop_optimization_when_n_structures_reached_C=None):
+    def optimize(self, stop_optimization_when_n_structures_reached_C=None):
         """
         Calculate progressively the new distribution and check convergence
         """
@@ -287,7 +273,7 @@ class MDSharkOptimizer:
         self.spectra_data = []
         error_data_array = []
 
-        assert(n_iteration >= 1)
+        # assert(self.n_iteration >= 1)
 
         if self.calculate_all_C == True:
 
@@ -306,7 +292,7 @@ class MDSharkOptimizer:
             self.new_distribution.append(calculate_optimized_features_distribution.
                                          calculate_new_distribution(weights0, all_data.sim, self.molecule_features, K=1))
 
-            for i in range(n_iteration):
+            for i in range(self.n_iteration):
 
                 # load data
                 path = f'new_iteration_[0-{i}]'
@@ -341,9 +327,9 @@ class MDSharkOptimizer:
                 error_data_array.append(error_data_array_i)
 
         else:
-            path = f'new_iteration_[0-{n_iteration-1}]'
+            path = f'new_iteration_[0-{self.n_iteration-1}]'
             all_data = load_sim_exp_data.data(
-                path, n_iteration, self.molecule_features,
+                path, self.n_iteration, self.molecule_features,
                 self.experimental_data_av, do_not_filter=self.do_not_filter_C)
 
             # optimize the weights
