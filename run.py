@@ -13,8 +13,8 @@ if __name__ == "__main__":
     weights = None
     all_data = None
 
-    # it_start = 0
-    it_start = 6
+    it_start = 0
+    # it_start = 6
     num_iterations = 1
 
     for n_iteration in range(it_start, it_start + num_iterations):
@@ -34,22 +34,27 @@ if __name__ == "__main__":
                 generate_structures=10,
                 molecule_features=molecule_features)
 
+            data = {
+            'all_data': None,
+            'error_data_array': None,
+            'stored_results': None,
+            'weights': None,
+        }
+
         else:
             logger.info(
                 f" -- it {n_iteration}, loading result from the previous iteration ...")
 
             with open(f"{top_dir}/results_{n_iteration-1}.pkl", 'rb') as file:
-                mds, all_data, error_data_array, stored_results = pickle.load(
-                    file)
-                weights = stored_results.weights
+                mds, data, = pickle.load(file)
 
         os.chdir(top_dir)
         mds.n_iteration = n_iteration
 
-        mds.initialize_structures(weights=weights, all_data=all_data)
+        mds.initialize_structures(weights=data['weights'], all_data=data['all_data'])
 
         # Generate new structures
-        mds.generate_new_structures()        
+        mds.generate_new_structures()
 
         # Optimize MD frames
         mds.optimize_new_structures()
@@ -66,8 +71,14 @@ if __name__ == "__main__":
         # Perform heuristic optimization
         all_data, error_data_array, stored_results = mds.optimize()
 
-        weights = stored_results.weights
+        # Save data
+        data = {
+            'all_data': all_data,
+            'error_data_array': error_data_array,
+            'stored_results': stored_results,
+            'weights': stored_results.weights,
+        }
 
         with open(f"{top_dir}/results_{n_iteration}.pkl", 'wb') as file:
             pickle.dump(
-                (mds, all_data, error_data_array, stored_results,), file)
+                (mds, data,), file)
