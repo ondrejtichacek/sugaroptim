@@ -68,6 +68,7 @@ else:
 
 slurm_additional_parameters = {
     'qos': 'backfill',
+    'partition': 'cpu,scpu,bfill',
     # 'reservation': 'ondra',
 }
 
@@ -78,6 +79,7 @@ cluster_bash_header['gaussian_o1'] = (
     """
 #SBATCH -J g1
 #SBATCH --qos=normal
+#SBATCH --partition=cpu,scpu,bfill
 #SBATCH --time=0-12
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=36
@@ -98,6 +100,7 @@ cluster_bash_header['gaussian_o2'] = (
     """
 #SBATCH -J g1
 #SBATCH --qos=backfill
+#SBATCH --partition=cpu,scpu,bfill
 #SBATCH --time=0-4
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=36
@@ -118,6 +121,7 @@ cluster_bash_header['gaussian_o3'] = (
     """
 #SBATCH -J g1
 #SBATCH --qos=backfill
+#SBATCH --partition=cpu,scpu,bfill
 #SBATCH --time=0-4
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=36
