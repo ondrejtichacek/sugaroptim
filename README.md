@@ -18,8 +18,8 @@ Modify paths to gromacs, plumed, etc. in `mdshark/config.py` by editing the `dum
 ### Example usage
 
 ```
-source /opt/uochb/soft/spack/20210305/share/spack/setup-env.sh
-spack load gromacs
+source /opt/uochb/soft/spack/latest/share/spack/setup-env.sh
+spack load gromacs+plumed
 python run.py
 
 ```
