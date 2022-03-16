@@ -12,6 +12,8 @@ conda install -c conda-forge python matplotlib jupyter mdtraj verboselogs colore
 pip install -e .
 ```
 
+### Setup
+Modify paths to gromacs, plumed, etc. in `mdshark/config.py` by editing the `dummy_host`.
 
 ### Example usage
 

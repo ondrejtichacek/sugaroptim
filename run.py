@@ -35,11 +35,11 @@ if __name__ == "__main__":
                 molecule_features=molecule_features)
 
             data = {
-            'all_data': None,
-            'error_data_array': None,
-            'stored_results': None,
-            'weights': None,
-        }
+                'all_data': None,
+                'error_data_array': None,
+                'stored_results': None,
+                'weights': None,
+            }
 
         else:
             logger.info(
