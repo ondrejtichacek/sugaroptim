@@ -33,8 +33,10 @@ elif (host == 'login1.aurum.ccf.uochb.local'
 
     environment_setup = {
         'gromacs': [
-            "source /opt/uochb/soft/spack/20210305/share/spack/setup-env.sh",
-            "spack load gromacs",
+            "source /opt/uochb/soft/spack/20211108-git/share/spack/setup-env.sh",
+            "spack load gromacs+plumed",
+            "spack load cuda",
+            "spack load fftw~mpi",
             # "source /opt/uochb/soft/spack/20191115/share/spack/setup-env.sh",
             # "spack env activate gromacs2019",
             # "spack env activate gromacs2020-nompi",
@@ -43,8 +45,10 @@ elif (host == 'login1.aurum.ccf.uochb.local'
         ],
 
         'plumed': [
-            "source /opt/uochb/soft/spack/20210305/share/spack/setup-env.sh",
-            "spack load gromacs",
+            "source /opt/uochb/soft/spack/20211108-git/share/spack/setup-env.sh",
+            "spack load gromacs+plumed",
+            "spack load cuda",
+            "spack load fftw~mpi",
             # "source /opt/uochb/soft/spack/20191115/share/spack/setup-env.sh",
             # "spack env activate gromacs2019-plumed",
             # "spack env activate gromacs2020-nompi",
