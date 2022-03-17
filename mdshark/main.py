@@ -45,7 +45,7 @@ class MDSharkOptimizer:
         ##################################
         # General settings
         # if True, then all iterations will be calculated (to see the progress), else only latest one
-        self.calculate_all_C = True
+        self.calculate_all_C = False
 
         ##################################
         # MD optimization settings
