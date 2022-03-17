@@ -34,6 +34,12 @@ class MDSharkOptimizer:
     stop_optimization_when_n_structures_reached_C: int = None
     molecule_features: m_molecular_features.MoleculeFeatures = None
 
+    # this speeds up optimization of MD frames, ! be careful with number > 2x # of cpus
+    md_num_workers: int = os.cpu_count()
+
+    qm_memory: int = 40
+    qm_nproc: int = 36
+
     def __post_init__(self):
 
         if self.stop_optimization_when_n_structures_reached_C is None:
@@ -51,8 +57,6 @@ class MDSharkOptimizer:
         # MD optimization settings
         # do you want to freeze amide bonds (HNCO dihedral andles) in original conformation?
         self.freeze_amide_bonds_C = False
-        # this speeds up optimization of MD frames, ! be careful with number > 2x # of cpus
-        self.NUM_WORKERS_C = 36
 
         ##################################
         # Obtain optimized weights
@@ -99,9 +103,7 @@ class MDSharkOptimizer:
         self.prepare_qm_input_files_C = 'm2_raman_high'  # m1_raman_low/m2_raman_high
 
         # gaussian input files nproc & memory
-        memory = 40
-        nproc = 36
-        self.qm_m_nproc = [memory, nproc]
+        self.qm_m_nproc = [self.qm_memory, self.qm_nproc]
 
         # Calculate Raman/ROA  x H/C NMR shifts  x Jij couplings?
         c_vib = 1
@@ -185,7 +187,7 @@ class MDSharkOptimizer:
         args = (self.n_iteration,
                 self.num_structures,
                 self.molecule_features)
-        kwargs = {'num_workers': self.NUM_WORKERS_C,
+        kwargs = {'num_workers': self.md_num_workers,
             'freeze_amide_bonds': self.freeze_amide_bonds_C}
 
         if use_submitit is True:

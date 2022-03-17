@@ -108,7 +108,7 @@ def optimize_individual_frames(n_iteration, number_of_new_structures, molecule_f
         NUM_WORKERS = kwargs['num_workers']
     except:
         NUM_WORKERS = 1
-        print("Problem with setting NUM_WORKERS_C, falling back to single worker.")
+        print("Problem with setting NUM_WORKERS, falling back to single worker.")
 
     with multiprocessing.Pool(processes=NUM_WORKERS) as pool:
         pool.map(partial(

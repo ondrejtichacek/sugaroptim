@@ -13,7 +13,17 @@ default_path = {
 }
 
 host = socket.gethostname()
-if host == 'lucy':
+
+if host == 'dummy_host':
+    path = {
+        # gromacs
+        'gmx': Path('/path/to/gmx'),
+
+        # gromacs-plumed
+        'mdrun_plumed': Path('/path/to/mdrun_plumed'),
+        'plumed': Path('/path/to/plumed'),
+    }
+elif host == 'lucy':
     path = {
         # gromacs
         'gmx': Path('/usr/local/gromacs/gromacs-2020.5/bin/gmx'),
