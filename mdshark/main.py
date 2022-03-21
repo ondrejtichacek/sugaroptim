@@ -151,12 +151,19 @@ class MDSharkOptimizer:
         logger.info("Generating new structures")
 
         if self.n_iteration == 0:
+    
+            T = config.sim_duration['generate_initial_MD_structures.generate_new_structures']
+            total_duration = int(np.ceil(10 + self.num_structures * T))
+
             function = generate_initial_MD_structures.generate_new_structures
             args = (self.molecule_features,
                     self.n_iteration,
                     self.num_structures)
             kwargs = {'freeze_amide_bonds': self.freeze_amide_bonds_C}
         else:
+            T = config.sim_duration['generate_n_iteration_MD_structures.generate_new_structures']
+            total_duration = int(np.ceil(10 + (self.num_structures // 50 + 1) * T))
+
             # generate new structures using optimized distributions
             function = generate_n_iteration_MD_structures.generate_new_structures
             args = (self.molecule_features,
@@ -166,11 +173,15 @@ class MDSharkOptimizer:
             kwargs = {'freeze_amide_bonds': self.freeze_amide_bonds_C}
 
         if use_submitit is True:
+
+            if total_duration > 4*60:
+                raise(ValueError('Too many structures (job would not finish in time).'))
+
             executor = get_default_executor('plumed')
             executor.update_parameters(
                 name='generate_new_structures',
-                timeout_min=10*self.num_structures,
-                slurm_additional_parameters={'mem': '2500M'},
+                timeout_min=total_duration,
+                mem_gb=2,
                 cpus_per_task=1,)
 
             job = executor.submit(function, *args, **kwargs)

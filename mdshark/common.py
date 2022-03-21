@@ -45,6 +45,7 @@ def run_submit_multi(cmd, cwd, env_setup, wait_complete=True):
         timeout_min=4*60,
         mem_gb=80,
         cpus_per_task=36,
+        slurm_partition='cpu,scpu,bfill',
         slurm_setup=command,
         slurm_additional_parameters=config.slurm_additional_parameters)
 
@@ -68,6 +69,7 @@ def run_submit(cmd, cwd, env_setup, wait_complete=True):
         timeout_min=4*60,
         mem_gb=80,
         cpus_per_task=36,
+        slurm_partition='cpu,scpu,bfill',
         slurm_setup=config.environment_setup[env_setup],
         slurm_additional_parameters=config.slurm_additional_parameters)
 
@@ -177,8 +179,9 @@ def get_default_executor(env_setup):
     executor = submitit.AutoExecutor(folder="log_test")
     executor.update_parameters(
         timeout_min=4*60,
-        mem_gb=85,
+        mem_gb=80,
         cpus_per_task=36,
+        slurm_partition='cpu,scpu,bfill',
         slurm_setup=config.environment_setup[env_setup],
         slurm_additional_parameters=config.slurm_additional_parameters)
 

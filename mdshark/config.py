@@ -82,10 +82,15 @@ else:
 
 slurm_additional_parameters = {
     'qos': 'backfill',
-    'partition': 'cpu,scpu,bfill',
+    # 'partition': 'cpu,scpu,bfill',
     # 'reservation': 'ondra',
 }
 
+# estimate runtime of generate_initial_MD_structures.generate_new_structures
+sim_duration = {
+    'generate_initial_MD_structures.generate_new_structures': 0.5, # per struture, in min (real measurement ~10 sec)
+    'generate_n_iteration_MD_structures.generate_new_structures': 10, # each 50 strutures, in min (real measurement ~3 min)
+}
 
 cluster_bash_header = {}
 

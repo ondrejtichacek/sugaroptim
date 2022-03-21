@@ -307,7 +307,10 @@ def generate_new_structures(molecule_features, n_iteration, number_of_new_struct
     # make the simulation until there are no crashes (while statement)
     pbar = tqdm(total=number_of_new_structures)
     cluster_sim_nt = 0
-    ns = int(number_of_new_structures/500*10)
+
+    # do 1 simulation for every 50 new structures
+
+    ns = int(number_of_new_structures/50)
     # Set minimal number of structures to 1*50 = 50
     if ns == 0:
         ns = 1
