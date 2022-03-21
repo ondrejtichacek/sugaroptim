@@ -86,6 +86,8 @@ slurm_additional_parameters = {
     # 'reservation': 'ondra',
 }
 
+slurm_max_timeout = 4*60 # for gromcas MD simulations
+
 # estimate runtime of generate_initial_MD_structures.generate_new_structures
 sim_duration = {
     'generate_initial_MD_structures.generate_new_structures': 0.5, # per struture, in min (real measurement ~10 sec)

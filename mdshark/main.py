@@ -174,7 +174,7 @@ class MDSharkOptimizer:
 
         if use_submitit is True:
 
-            if total_duration > 4*60:
+            if total_duration > config.slurm_max_timeout:
                 raise(ValueError('Too many structures (job would not finish in time).'))
 
             executor = get_default_executor('plumed')
